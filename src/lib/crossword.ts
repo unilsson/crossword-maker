@@ -1,4 +1,10 @@
-import type { Cell, ClueCell, Crossword, Direction } from "../types/crossword";
+import type {
+  Cell,
+  ClueCell,
+  Crossword,
+  CrosswordImage,
+  Direction,
+} from "../types/crossword";
 
 export const DEFAULT_SIZE = 15;
 
@@ -8,13 +14,14 @@ export const createEmptyCrossword = (
   width = DEFAULT_SIZE,
   height = DEFAULT_SIZE,
 ): Crossword => ({
-  version: 1,
+  version: 2,
   title: "Nytt korsord",
   width,
   height,
   cells: Array.from({ length: height }, () =>
     Array.from({ length: width }, createLetterCell),
   ),
+  images: [],
 });
 
 export const cycleCellType = (cell: Cell): Cell => {
@@ -70,6 +77,32 @@ export const removeClue = (cell: ClueCell, clueId: string): ClueCell => {
   return { ...cell, clues: cell.clues.filter((clue) => clue.id !== clueId) };
 };
 
+export const clampImageToGrid = (
+  image: CrosswordImage,
+  width: number,
+  height: number,
+): CrosswordImage => {
+  const row = Math.max(0, Math.min(height - 1, image.row));
+  const col = Math.max(0, Math.min(width - 1, image.col));
+  const rowSpan = Math.max(1, Math.min(image.rowSpan, height - row));
+  const colSpan = Math.max(1, Math.min(image.colSpan, width - col));
+
+  return { ...image, row, col, rowSpan, colSpan };
+};
+
+export const imageAtCell = (
+  images: CrosswordImage[],
+  row: number,
+  col: number,
+): CrosswordImage | undefined =>
+  images.find(
+    (image) =>
+      row >= image.row &&
+      row < image.row + image.rowSpan &&
+      col >= image.col &&
+      col < image.col + image.colSpan,
+  );
+
 const isCell = (value: unknown): value is Cell => {
   if (!value || typeof value !== "object") return false;
   const cell = value as Record<string, unknown>;
@@ -92,31 +125,95 @@ const isCell = (value: unknown): value is Cell => {
   return false;
 };
 
+const isImage = (value: unknown): value is CrosswordImage => {
+  if (!value || typeof value !== "object") return false;
+  const image = value as Record<string, unknown>;
+
+  return (
+    typeof image.id === "string" &&
+    typeof image.assetId === "string" &&
+    typeof image.fileName === "string" &&
+    Number.isInteger(image.row) &&
+    Number.isInteger(image.col) &&
+    Number.isInteger(image.rowSpan) &&
+    Number.isInteger(image.colSpan) &&
+    typeof image.row === "number" &&
+    typeof image.col === "number" &&
+    typeof image.rowSpan === "number" &&
+    typeof image.colSpan === "number" &&
+    image.row >= 0 &&
+    image.col >= 0 &&
+    image.rowSpan >= 1 &&
+    image.colSpan >= 1 &&
+    (image.fit === "cover" || image.fit === "contain") &&
+    typeof image.alt === "string"
+  );
+};
+
+const validGrid = (
+  cells: unknown,
+  width: number,
+  height: number,
+): cells is Cell[][] =>
+  Array.isArray(cells) &&
+  cells.length === height &&
+  cells.every(
+    (row) => Array.isArray(row) && row.length === width && row.every(isCell),
+  );
+
 export const isCrossword = (value: unknown): value is Crossword => {
   if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Crossword>;
+  const candidate = value as Partial<Crossword> & { version?: number };
 
   if (
-    candidate.version !== 1 ||
+    candidate.version !== 2 ||
     typeof candidate.title !== "string" ||
-    !Number.isInteger(candidate.width) ||
-    !Number.isInteger(candidate.height) ||
     typeof candidate.width !== "number" ||
     typeof candidate.height !== "number" ||
+    !Number.isInteger(candidate.width) ||
+    !Number.isInteger(candidate.height) ||
     candidate.width < 1 ||
     candidate.height < 1 ||
-    !Array.isArray(candidate.cells)
+    !validGrid(candidate.cells, candidate.width, candidate.height) ||
+    !Array.isArray(candidate.images) ||
+    !candidate.images.every(isImage)
   ) {
     return false;
   }
 
-  return (
-    candidate.cells.length === candidate.height &&
-    candidate.cells.every(
-      (row) =>
-        Array.isArray(row) &&
-        row.length === candidate.width &&
-        row.every(isCell),
-    )
+  return candidate.images.every(
+    (image) =>
+      image.row + image.rowSpan <= candidate.height! &&
+      image.col + image.colSpan <= candidate.width!,
   );
+};
+
+export const migrateCrossword = (value: unknown): Crossword | null => {
+  if (isCrossword(value)) return value;
+
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Record<string, unknown>;
+
+  if (
+    candidate.version !== 1 ||
+    typeof candidate.title !== "string" ||
+    typeof candidate.width !== "number" ||
+    typeof candidate.height !== "number" ||
+    !Number.isInteger(candidate.width) ||
+    !Number.isInteger(candidate.height) ||
+    candidate.width < 1 ||
+    candidate.height < 1 ||
+    !validGrid(candidate.cells, candidate.width, candidate.height)
+  ) {
+    return null;
+  }
+
+  return {
+    version: 2,
+    title: candidate.title,
+    width: candidate.width,
+    height: candidate.height,
+    cells: candidate.cells,
+    images: [],
+  };
 };
