@@ -1,10 +1,12 @@
-import type { MouseEvent } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import type { Cell } from "../types/crossword";
 
 interface CrosswordCellProps {
   cell: Cell;
   row: number;
   col: number;
+  gridWidth: number;
+  gridHeight: number;
   covered: boolean;
   selected: boolean;
   onSelect: () => void;
@@ -17,7 +19,7 @@ const Arrow = ({ direction }: { direction: "right" | "down" }) => (
 );
 
 export default function CrosswordCell({
-  cell, row, col, covered, selected, onSelect, onCycleType, onLetterChange,
+  cell, row, col, gridWidth, gridHeight, covered, selected, onSelect, onCycleType, onLetterChange,
 }: CrosswordCellProps) {
   const className = [
     "crossword-cell",
@@ -25,6 +27,13 @@ export default function CrosswordCell({
     covered ? "is-covered" : "",
     selected ? "is-selected" : "",
   ].filter(Boolean).join(" ");
+
+  const style: CSSProperties = {
+    left: (col / gridWidth) * 100 + "%",
+    top: (row / gridHeight) * 100 + "%",
+    width: 100 / gridWidth + "%",
+    height: 100 / gridHeight + "%",
+  };
 
   const onContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -35,7 +44,7 @@ export default function CrosswordCell({
 
   if (cell.type === "letter") {
     return (
-      <div className={className} role="gridcell"
+      <div className={className} role="gridcell" style={style}
         aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
         onClick={onSelect} onContextMenu={onContextMenu}>
         {!covered && (
@@ -47,13 +56,13 @@ export default function CrosswordCell({
   }
 
   if (cell.type === "black") {
-    return <div className={className} role="gridcell"
+    return <div className={className} role="gridcell" style={style}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
       onClick={onSelect} onContextMenu={onContextMenu} />;
   }
 
   return (
-    <div className={className} role="gridcell"
+    <div className={className} role="gridcell" style={style}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
       onClick={onSelect} onContextMenu={onContextMenu}>
       {!covered && cell.clues.slice(0, 2).map((clue) => (
