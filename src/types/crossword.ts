@@ -1,4 +1,5 @@
 export type Direction = "right" | "down";
+export type ImageFit = "cover" | "contain";
 
 export interface Clue {
   id: string;
@@ -22,10 +23,23 @@ export type ClueCell = {
 
 export type Cell = LetterCell | BlackCell | ClueCell;
 
+export interface CrosswordImage {
+  id: string;
+  assetId: string;
+  fileName: string;
+  row: number;
+  col: number;
+  rowSpan: number;
+  colSpan: number;
+  fit: ImageFit;
+  alt: string;
+}
+
 export interface Crossword {
-  version: 1;
+  version: 2;
   title: string;
   width: number;
   height: number;
   cells: Cell[][];
+  images: CrosswordImage[];
 }
