@@ -63,7 +63,11 @@ export default function App() {
     if (!selected) return;
 
     const target = event.target;
-    if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+    if (
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLInputElement && !target.closest(".crossword-cell"))
+    ) {
       return;
     }
 
