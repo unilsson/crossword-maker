@@ -9,6 +9,8 @@ interface CrosswordCellProps {
   gridHeight: number;
   covered: boolean;
   selected: boolean;
+  highlighted: boolean;
+  hasProblem: boolean;
   onSelect: () => void;
   onCycleType: () => void;
   onLetterChange: (value: string) => void;
@@ -19,12 +21,25 @@ const Arrow = ({ direction }: { direction: "right" | "down" }) => (
 );
 
 export default function CrosswordCell({
-  cell, row, col, gridWidth, gridHeight, covered, selected, onSelect, onCycleType, onLetterChange,
+  cell,
+  row,
+  col,
+  gridWidth,
+  gridHeight,
+  covered,
+  selected,
+  highlighted,
+  hasProblem,
+  onSelect,
+  onCycleType,
+  onLetterChange,
 }: CrosswordCellProps) {
   const className = [
     "crossword-cell",
     "crossword-cell--" + cell.type,
     covered ? "is-covered" : "",
+    highlighted ? "is-answer-highlighted" : "",
+    hasProblem ? "has-problem" : "",
     selected ? "is-selected" : "",
   ].filter(Boolean).join(" ");
 
