@@ -4,11 +4,15 @@ import type { CrosswordImage } from "../types/crossword";
 
 interface Props {
   image: CrosswordImage;
+  gridWidth: number;
+  gridHeight: number;
   selected: boolean;
   onSelect: () => void;
 }
 
-export default function CrosswordImageOverlay({ image, selected, onSelect }: Props) {
+export default function CrosswordImageOverlay({
+  image, gridWidth, gridHeight, selected, onSelect,
+}: Props) {
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,18 +31,22 @@ export default function CrosswordImageOverlay({ image, selected, onSelect }: Pro
     };
   }, [image.assetId]);
 
+  const left = (image.col / gridWidth) * 100;
+  const top = (image.row / gridHeight) * 100;
+  const width = (image.colSpan / gridWidth) * 100;
+  const height = (image.rowSpan / gridHeight) * 100;
+
   return (
     <button
       type="button"
       className={"crossword-image" + (selected ? " is-selected" : "")}
       style={{
-        gridRow: image.row + 1 + " / span " + image.rowSpan,
-        gridColumn: image.col + 1 + " / span " + image.colSpan,
+        left: left + "%",
+        top: top + "%",
+        width: width + "%",
+        height: height + "%",
       }}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelect();
-      }}
+      onClick={(event) => { event.stopPropagation(); onSelect(); }}
       aria-label={image.alt || image.fileName || "Bild i korsordet"}
       title={image.fileName}
     >
