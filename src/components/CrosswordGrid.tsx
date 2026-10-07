@@ -18,15 +18,7 @@ export default function CrosswordGrid({
 }: CrosswordGridProps) {
   return (
     <div className="crossword-grid-shell">
-      <div
-        className="crossword-grid"
-        style={{
-          gridTemplateColumns: "repeat(" + crossword.width + ", minmax(0, 1fr))",
-          gridTemplateRows: "repeat(" + crossword.height + ", minmax(0, 1fr))",
-        }}
-        role="grid"
-        aria-label={crossword.title}
-      >
+      <div className="crossword-grid" role="grid" aria-label={crossword.title}>
         {crossword.cells.flatMap((row, rowIndex) =>
           row.map((cell, colIndex) => {
             const covered = Boolean(imageAtCell(crossword.images, rowIndex, colIndex));
@@ -37,6 +29,8 @@ export default function CrosswordGrid({
                 cell={cell}
                 row={rowIndex}
                 col={colIndex}
+                gridWidth={crossword.width}
+                gridHeight={crossword.height}
                 covered={covered}
                 selected={selected?.row === rowIndex && selected?.col === colIndex}
                 onSelect={() => { if (!covered) onSelect(rowIndex, colIndex); }}
