@@ -32,10 +32,11 @@ export default function CrosswordCell({
   };
 
   const suffix = covered ? ", täcks av bild" : "";
+  const gridStyle = { gridRowStart: row + 1, gridColumnStart: col + 1 };
 
   if (cell.type === "letter") {
     return (
-      <div className={className} role="gridcell"
+      <div className={className} role="gridcell" style={gridStyle}
         aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
         onClick={onSelect} onContextMenu={onContextMenu}>
         {!covered && (
@@ -47,13 +48,13 @@ export default function CrosswordCell({
   }
 
   if (cell.type === "black") {
-    return <div className={className} role="gridcell"
+    return <div className={className} role="gridcell" style={gridStyle}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
       onClick={onSelect} onContextMenu={onContextMenu} />;
   }
 
   return (
-    <div className={className} role="gridcell"
+    <div className={className} role="gridcell" style={gridStyle}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
       onClick={onSelect} onContextMenu={onContextMenu}>
       {!covered && cell.clues.slice(0, 2).map((clue) => (
