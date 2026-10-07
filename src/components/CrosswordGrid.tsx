@@ -17,46 +17,52 @@ export default function CrosswordGrid({
   crossword, selected, selectedImageId, onSelect, onSelectImage, onChangeCell, onCycleType,
 }: CrosswordGridProps) {
   return (
-    <div
-      className="crossword-grid"
-      style={{
-        gridTemplateColumns: "repeat(" + crossword.width + ", minmax(0, 1fr))",
-        gridTemplateRows: "repeat(" + crossword.height + ", minmax(0, 1fr))",
-      }}
-      role="grid"
-      aria-label={crossword.title}
-    >
-      {crossword.cells.flatMap((row, rowIndex) =>
-        row.map((cell, colIndex) => {
-          const covered = Boolean(imageAtCell(crossword.images, rowIndex, colIndex));
+    <div className="crossword-grid-shell">
+      <div
+        className="crossword-grid"
+        style={{
+          gridTemplateColumns: "repeat(" + crossword.width + ", minmax(0, 1fr))",
+          gridTemplateRows: "repeat(" + crossword.height + ", minmax(0, 1fr))",
+        }}
+        role="grid"
+        aria-label={crossword.title}
+      >
+        {crossword.cells.flatMap((row, rowIndex) =>
+          row.map((cell, colIndex) => {
+            const covered = Boolean(imageAtCell(crossword.images, rowIndex, colIndex));
 
-          return (
-            <CrosswordCell
-              key={rowIndex + "-" + colIndex}
-              cell={cell}
-              row={rowIndex}
-              col={colIndex}
-              covered={covered}
-              selected={selected?.row === rowIndex && selected?.col === colIndex}
-              onSelect={() => { if (!covered) onSelect(rowIndex, colIndex); }}
-              onCycleType={() => { if (!covered) onCycleType(rowIndex, colIndex); }}
-              onLetterChange={(value) => {
-                if (covered) return;
-                onChangeCell(rowIndex, colIndex, cell.type === "letter" ? { ...cell, value } : cell);
-              }}
-            />
-          );
-        }),
-      )}
+            return (
+              <CrosswordCell
+                key={rowIndex + "-" + colIndex}
+                cell={cell}
+                row={rowIndex}
+                col={colIndex}
+                covered={covered}
+                selected={selected?.row === rowIndex && selected?.col === colIndex}
+                onSelect={() => { if (!covered) onSelect(rowIndex, colIndex); }}
+                onCycleType={() => { if (!covered) onCycleType(rowIndex, colIndex); }}
+                onLetterChange={(value) => {
+                  if (covered) return;
+                  onChangeCell(rowIndex, colIndex, cell.type === "letter" ? { ...cell, value } : cell);
+                }}
+              />
+            );
+          }),
+        )}
+      </div>
 
-      {crossword.images.map((image) => (
-        <CrosswordImageOverlay
-          key={image.id}
-          image={image}
-          selected={selectedImageId === image.id}
-          onSelect={() => onSelectImage(image.id)}
-        />
-      ))}
+      <div className="crossword-image-layer" aria-hidden="false">
+        {crossword.images.map((image) => (
+          <CrosswordImageOverlay
+            key={image.id}
+            image={image}
+            gridWidth={crossword.width}
+            gridHeight={crossword.height}
+            selected={selectedImageId === image.id}
+            onSelect={() => onSelectImage(image.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
