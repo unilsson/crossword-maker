@@ -872,6 +872,10 @@ export default function App() {
                               )
                             }
                           />
+                          <small>
+                            Automatisk svensk avstavning används. Skriv | för
+                            en egen avstavningspunkt, t.ex. männi|skans.
+                          </small>
                         </label>
 
                         <label className="field">
