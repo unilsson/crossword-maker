@@ -18,12 +18,17 @@ const pathForDirection = (
     return { start: { row: 0, col: 1 }, step: { row: 1, col: 0 } };
   }
 
+  if (direction === "down-right") {
+    return { start: { row: 1, col: 0 }, step: { row: 0, col: 1 } };
+  }
+
   return { start: { row: 1, col: 0 }, step: { row: 1, col: 0 } };
 };
 
 const directionText = (direction: Direction): string => {
   if (direction === "right") return "åt höger";
   if (direction === "right-down") return "åt höger och sedan nedåt";
+  if (direction === "down-right") return "nedåt och sedan åt höger";
   return "nedåt";
 };
 
