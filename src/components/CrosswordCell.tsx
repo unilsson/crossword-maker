@@ -18,7 +18,10 @@ interface CrosswordCellProps {
 }
 
 const Arrow = ({ direction }: { direction: "right" | "down" }) => (
-  <span className="clue-arrow" aria-hidden="true">{direction === "right" ? "→" : "↓"}</span>
+  <span
+    className={"clue-edge-arrow clue-edge-arrow--" + direction}
+    aria-hidden="true"
+  />
 );
 
 export default function CrosswordCell({
