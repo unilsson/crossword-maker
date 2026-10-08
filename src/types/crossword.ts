@@ -1,4 +1,4 @@
-export type Direction = "right" | "down" | "right-down" | "down-right";
+export type Direction = "right" | "down" | "right-down" | "down-right" | "down-right-plus-one";
 export type ImageFit = "cover" | "contain";
 
 export interface Clue {
