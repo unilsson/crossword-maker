@@ -182,9 +182,11 @@ button.secondary {
 .crossword-cell--clue {
   display: flex;
   flex-direction: column;
+  overflow: visible;
   background: #ebe4d8;
   font-size: clamp(5px, 0.75vw, 10px);
   text-align: left;
+  z-index: 1;
 }
 
 .clue-preview {
@@ -193,8 +195,8 @@ button.secondary {
   flex: 1;
   min-height: 0;
   align-items: center;
-  padding: 2px 11px 2px 3px;
-  overflow: hidden;
+  padding: 2px 3px;
+  overflow: visible;
   border-bottom: 1px solid #8b8378;
   line-height: 1.05;
 }
@@ -204,16 +206,78 @@ button.secondary {
 }
 
 .clue-preview > span:first-child {
+  display: block;
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.clue-arrow {
+.clue-edge-arrow {
   position: absolute;
-  right: 2px;
-  bottom: 1px;
-  font-size: 1.25em;
-  font-weight: 900;
+  z-index: 6;
+  display: block;
+  pointer-events: none;
+}
+
+.clue-edge-arrow--right {
+  top: 50%;
+  right: -8px;
+  width: 12px;
+  height: 10px;
+  transform: translateY(-50%);
+}
+
+.clue-edge-arrow--right::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 7px;
+  height: 2px;
+  background: #171717;
+}
+
+.clue-edge-arrow--right::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid #171717;
+}
+
+.clue-edge-arrow--down {
+  left: 50%;
+  bottom: -8px;
+  width: 10px;
+  height: 12px;
+  transform: translateX(-50%);
+}
+
+.clue-edge-arrow--down::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 4px;
+  width: 2px;
+  height: 7px;
+  background: #171717;
+}
+
+.clue-edge-arrow--down::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 1px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #171717;
 }
 
 .inspector {
