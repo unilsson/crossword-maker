@@ -313,10 +313,10 @@ button.secondary {
 }
 
 .clue-edge-arrow--right-down-plus-one {
-  top: 50%;
   right: -10px;
+  bottom: -14px;
   width: 10px;
-  height: calc(100% + 14px);
+  height: 14px;
   border-top: 2px solid #171717;
   border-right: 2px solid #171717;
 }
