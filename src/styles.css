@@ -228,164 +228,65 @@ button.secondary {
   position: absolute;
   z-index: 6;
   display: block;
+  overflow: visible;
+  color: #171717;
   pointer-events: none;
+}
+
+.clue-edge-arrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .clue-edge-arrow--right {
   top: 50%;
-  right: -8px;
-  width: 12px;
-  height: 10px;
+  right: -12px;
+  width: 16px;
+  height: 16px;
   transform: translateY(-50%);
-}
-
-.clue-edge-arrow--right::before {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 0;
-  width: 7px;
-  height: 2px;
-  background: #171717;
-}
-
-.clue-edge-arrow--right::after {
-  content: "";
-  position: absolute;
-  top: 1px;
-  right: 0;
-  width: 0;
-  height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-left: 5px solid #171717;
 }
 
 .clue-edge-arrow--down {
   left: 50%;
-  bottom: -8px;
-  width: 10px;
-  height: 12px;
+  bottom: -12px;
+  width: 16px;
+  height: 16px;
   transform: translateX(-50%);
-}
-
-.clue-edge-arrow--down::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 4px;
-  width: 2px;
-  height: 7px;
-  background: #171717;
-}
-
-.clue-edge-arrow--down::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 1px;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid #171717;
 }
 
 .clue-edge-arrow--right-down {
   top: 50%;
-  right: -10px;
-  width: 10px;
-  height: 14px;
-  border-top: 2px solid #171717;
-  border-right: 2px solid #171717;
-}
-
-.clue-edge-arrow--right-down::after {
-  content: "";
-  position: absolute;
-  right: -5px;
-  bottom: -1px;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid #171717;
-}
-
-.clue-edge-arrow--right-down-plus-one {
-  right: -11px;
-  bottom: -22px;
-  width: 11px;
-  height: 22px;
-  background:
-    linear-gradient(#171717, #171717) 9px 9px / 2px 8px no-repeat;
-}
-
-.clue-edge-arrow--right-down-plus-one::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 14px;
-  height: 2px;
-  background: #171717;
-  transform: rotate(45deg);
-  transform-origin: left center;
-}
-
-.clue-edge-arrow--right-down-plus-one::after {
-  content: "";
-  position: absolute;
-  top: 16px;
-  left: 10px;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid #171717;
-  transform: translateX(-50%);
+  right: -13px;
+  width: 18px;
+  height: 24px;
 }
 
 .clue-edge-arrow--down-right {
   left: 50%;
-  bottom: -10px;
-  width: 14px;
-  height: 10px;
-  border-left: 2px solid #171717;
-  border-bottom: 2px solid #171717;
+  bottom: -13px;
+  width: 24px;
+  height: 18px;
 }
 
-.clue-edge-arrow--down-right::after {
-  content: "";
-  position: absolute;
-  right: -1px;
-  bottom: -5px;
-  width: 0;
-  height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-left: 5px solid #171717;
+.clue-edge-arrow--right-down-plus-one,
+.clue-edge-arrow--down-right-plus-one {
+  left: 100%;
+  top: 100%;
+  transform: translate(-1px, -1px);
+}
+
+.clue-edge-arrow--right-down-plus-one {
+  width: 20px;
+  height: 30px;
 }
 
 .clue-edge-arrow--down-right-plus-one {
-  left: 50%;
-  bottom: -10px;
-  width: calc(100% + 14px);
-  height: 10px;
-  border-left: 2px solid #171717;
-  border-bottom: 2px solid #171717;
-}
-
-.clue-edge-arrow--down-right-plus-one::after {
-  content: "";
-  position: absolute;
-  right: -1px;
-  bottom: -5px;
-  width: 0;
-  height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-left: 5px solid #171717;
+  width: 30px;
+  height: 20px;
 }
 
 .inspector {
