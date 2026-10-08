@@ -11,6 +11,7 @@ interface CrosswordCellProps {
   selected: boolean;
   highlighted: boolean;
   hasProblem: boolean;
+  uppercaseClues: boolean;
   onSelect: () => void;
   onCycleType: () => void;
   onLetterChange: (value: string) => void;
@@ -30,6 +31,7 @@ export default function CrosswordCell({
   selected,
   highlighted,
   hasProblem,
+  uppercaseClues,
   onSelect,
   onCycleType,
   onLetterChange,
@@ -89,7 +91,11 @@ export default function CrosswordCell({
       onClick={onSelect} onContextMenu={onContextMenu}>
       {!covered && orderedClues.map((clue) => (
         <span className="clue-preview" key={clue.id}>
-          <span>{clue.text || "Ledtråd"}</span>
+          <span>
+            {uppercaseClues
+              ? (clue.text || "Ledtråd").toLocaleUpperCase("sv-SE")
+              : clue.text || "Ledtråd"}
+          </span>
           <Arrow direction={clue.direction} />
         </span>
       ))}

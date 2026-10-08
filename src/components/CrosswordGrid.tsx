@@ -9,6 +9,7 @@ interface CrosswordGridProps {
   selectedImageId: string | null;
   highlightedCells: Set<string>;
   problemCells: Set<string>;
+  uppercaseClues: boolean;
   onSelect: (row: number, col: number) => void;
   onSelectImage: (imageId: string) => void;
   onChangeCell: (row: number, col: number, cell: Cell) => void;
@@ -21,6 +22,7 @@ export default function CrosswordGrid({
   selectedImageId,
   highlightedCells,
   problemCells,
+  uppercaseClues,
   onSelect,
   onSelectImage,
   onChangeCell,
@@ -46,6 +48,7 @@ export default function CrosswordGrid({
                 selected={selected?.row === rowIndex && selected?.col === colIndex}
                 highlighted={highlightedCells.has(cellKey)}
                 hasProblem={problemCells.has(cellKey)}
+                uppercaseClues={uppercaseClues}
                 onSelect={() => { if (!covered) onSelect(rowIndex, colIndex); }}
                 onCycleType={() => { if (!covered) onCycleType(rowIndex, colIndex); }}
                 onLetterChange={(value) => {

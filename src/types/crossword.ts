@@ -42,6 +42,7 @@ export interface Crossword {
   height: number;
   cells: Cell[][];
   images: CrosswordImage[];
+  uppercaseClues?: boolean;
 }
 
 

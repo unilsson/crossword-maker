@@ -10,6 +10,7 @@ The editor currently includes:
 - 15×15 editable grid.
 - Letter, black and clue cells.
 - One or two clues per clue cell, with right/down arrows.
+- Project-level toggle for rendering all clue text in uppercase without changing the stored clue text.
 - Swedish letters Å, Ä and Ö.
 - Images that can span multiple rows and columns.
 - Automatic answer detection from clue arrows.

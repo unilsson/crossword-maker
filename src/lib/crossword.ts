@@ -22,6 +22,7 @@ export const createEmptyCrossword = (
     Array.from({ length: width }, createLetterCell),
   ),
   images: [],
+  uppercaseClues: false,
 });
 
 export const cycleCellType = (cell: Cell): Cell => {
@@ -176,7 +177,9 @@ export const isCrossword = (value: unknown): value is Crossword => {
     candidate.height < 1 ||
     !validGrid(candidate.cells, candidate.width, candidate.height) ||
     !Array.isArray(candidate.images) ||
-    !candidate.images.every(isImage)
+    !candidate.images.every(isImage) ||
+    (candidate.uppercaseClues !== undefined &&
+      typeof candidate.uppercaseClues !== "boolean")
   ) {
     return false;
   }
@@ -189,7 +192,12 @@ export const isCrossword = (value: unknown): value is Crossword => {
 };
 
 export const migrateCrossword = (value: unknown): Crossword | null => {
-  if (isCrossword(value)) return value;
+  if (isCrossword(value)) {
+    return {
+      ...value,
+      uppercaseClues: value.uppercaseClues ?? false,
+    };
+  }
 
   if (!value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
@@ -215,5 +223,6 @@ export const migrateCrossword = (value: unknown): Crossword | null => {
     height: candidate.height,
     cells: candidate.cells,
     images: [],
+    uppercaseClues: false,
   };
 };
