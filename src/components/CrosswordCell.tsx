@@ -24,6 +24,15 @@ const Arrow = ({ direction }: { direction: "right" | "down" }) => (
   />
 );
 
+const formatClueText = (text: string, uppercase: boolean) => {
+  const displayText = text || "Ledtråd";
+  const casedText = uppercase
+    ? displayText.toLocaleUpperCase("sv-SE")
+    : displayText;
+
+  return casedText.replace(/\|/g, "\u00AD");
+};
+
 export default function CrosswordCell({
   cell,
   row,
@@ -94,11 +103,7 @@ export default function CrosswordCell({
       onClick={onSelect} onContextMenu={onContextMenu}>
       {!covered && orderedClues.map((clue) => (
         <span className="clue-preview" key={clue.id}>
-          <span>
-            {uppercaseClues
-              ? (clue.text || "Ledtråd").toLocaleUpperCase("sv-SE")
-              : clue.text || "Ledtråd"}
-          </span>
+          <span lang="sv">{formatClueText(clue.text, uppercaseClues)}</span>
           <Arrow direction={clue.direction} />
         </span>
       ))}
