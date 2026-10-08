@@ -9,7 +9,7 @@ The editor currently includes:
 - React + TypeScript + Vite.
 - 15×15 editable grid.
 - Letter, black and clue cells.
-- One or two clues per clue cell, with right/down arrows.
+- One or two clues per clue cell, with right, down and right-then-down arrows.
 - Project-level toggle for rendering all clue text in uppercase without changing the stored clue text.
 - Automatic Swedish clue hyphenation, with `|` as an optional manual soft-hyphen marker.
 - Swedish letters Å, Ä and Ö.
@@ -25,7 +25,7 @@ The editor currently includes:
 
 ### Answer rules
 
-A clue pointing right (`→`) starts in the cell immediately to the right. A clue pointing down (`↓`) starts immediately below. The answer continues through letter cells and stops at the grid edge, a black cell, another clue cell or an image-covered cell.
+A clue pointing right (`→`) starts in the cell immediately to the right and continues right. A clue pointing down (`↓`) starts immediately below and continues down. A right-then-down clue (`↳`) starts in the cell immediately to the right and then continues downward from that column. Answers stop at the grid edge, a black cell, another clue cell or an image-covered cell.
 
 Derived answers are not stored in project JSON. They are recalculated from the current layout.
 
