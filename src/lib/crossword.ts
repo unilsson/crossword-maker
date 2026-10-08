@@ -4,6 +4,7 @@ import type {
   Crossword,
   CrosswordImage,
   Direction,
+  ImageArrow,
 } from "../types/crossword";
 
 export const DEFAULT_SIZE = 15;
@@ -97,8 +98,19 @@ export const clampImageToGrid = (
   const col = Math.max(0, Math.min(width - 1, image.col));
   const rowSpan = Math.max(1, Math.min(image.rowSpan, height - row));
   const colSpan = Math.max(1, Math.min(image.colSpan, width - col));
+  const arrows = (image.arrows ?? []).map((arrow) => ({
+    ...arrow,
+    offset: Math.max(
+      0,
+      Math.min(
+        arrow.edge === "bottom" ? colSpan - 1 : rowSpan - 1,
+        arrow.offset,
+      ),
+    ),
+    distance: Math.max(0, Math.min(4, arrow.distance)),
+  }));
 
-  return { ...image, row, col, rowSpan, colSpan };
+  return { ...image, row, col, rowSpan, colSpan, arrows };
 };
 
 export const imageAtCell = (
@@ -124,7 +136,16 @@ const isCell = (value: unknown): value is Cell => {
 
   if (!hasValidFill) return false;
 
-  if (cell.type === "letter") return typeof cell.value === "string";
+  if (cell.type === "letter") {
+    const wordStarts = cell.wordStarts;
+    const validWordStarts =
+      wordStarts === undefined ||
+      (Array.isArray(wordStarts) &&
+        wordStarts.every(
+          (direction) => direction === "right" || direction === "down",
+        ));
+    return typeof cell.value === "string" && validWordStarts;
+  }
   if (cell.type === "black") return true;
 
   if (cell.type === "clue" && Array.isArray(cell.clues)) {
@@ -145,6 +166,24 @@ const isCell = (value: unknown): value is Cell => {
   }
 
   return false;
+};
+
+const isImageArrow = (value: unknown): value is ImageArrow => {
+  if (!value || typeof value !== "object") return false;
+  const arrow = value as Record<string, unknown>;
+
+  return (
+    typeof arrow.id === "string" &&
+    (arrow.edge === "bottom" || arrow.edge === "right") &&
+    Number.isInteger(arrow.offset) &&
+    typeof arrow.offset === "number" &&
+    arrow.offset >= 0 &&
+    (arrow.direction === "right" || arrow.direction === "down") &&
+    Number.isInteger(arrow.distance) &&
+    typeof arrow.distance === "number" &&
+    arrow.distance >= 0 &&
+    arrow.distance <= 4
+  );
 };
 
 const isImage = (value: unknown): value is CrosswordImage => {
@@ -168,7 +207,9 @@ const isImage = (value: unknown): value is CrosswordImage => {
     image.rowSpan >= 1 &&
     image.colSpan >= 1 &&
     (image.fit === "cover" || image.fit === "contain") &&
-    typeof image.alt === "string"
+    typeof image.alt === "string" &&
+    (image.arrows === undefined ||
+      (Array.isArray(image.arrows) && image.arrows.every(isImageArrow)))
   );
 };
 
@@ -208,7 +249,12 @@ export const isCrossword = (value: unknown): value is Crossword => {
   return candidate.images.every(
     (image) =>
       image.row + image.rowSpan <= candidate.height! &&
-      image.col + image.colSpan <= candidate.width!,
+      image.col + image.colSpan <= candidate.width! &&
+      (image.arrows ?? []).every(
+        (arrow) =>
+          arrow.offset <
+          (arrow.edge === "bottom" ? image.colSpan : image.rowSpan),
+      ),
   );
 };
 
@@ -216,6 +262,10 @@ export const migrateCrossword = (value: unknown): Crossword | null => {
   if (isCrossword(value)) {
     return {
       ...value,
+      images: value.images.map((image) => ({
+        ...image,
+        arrows: image.arrows ?? [],
+      })),
       uppercaseClues: value.uppercaseClues ?? false,
     };
   }

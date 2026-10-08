@@ -1,5 +1,9 @@
 import type { CSSProperties, MouseEvent } from "react";
-import type { Cell, Direction } from "../types/crossword";
+import type {
+  Cell,
+  Direction,
+  WordStartDirection,
+} from "../types/crossword";
 
 interface CrosswordCellProps {
   cell: Cell;
@@ -9,10 +13,11 @@ interface CrosswordCellProps {
   gridHeight: number;
   covered: boolean;
   selected: boolean;
+  rangeSelected: boolean;
   highlighted: boolean;
   hasProblem: boolean;
   uppercaseClues: boolean;
-  onSelect: () => void;
+  onSelect: (extend?: boolean) => void;
   onCycleType: () => void;
   onLetterChange: (value: string) => void;
 }
@@ -62,6 +67,25 @@ const Arrow = ({ direction }: { direction: Direction }) => {
   );
 };
 
+const WordStartMarker = ({
+  direction,
+}: {
+  direction: WordStartDirection;
+}) => (
+  <svg
+    className={"word-start-marker word-start-marker--" + direction}
+    viewBox="0 0 20 20"
+    aria-hidden="true"
+    focusable="false"
+  >
+    {direction === "right" ? (
+      <path d="M1 10 H17 M13 6 L17 10 L13 14" />
+    ) : (
+      <path d="M10 1 V17 M6 13 L10 17 L14 13" />
+    )}
+  </svg>
+);
+
 const formatClueText = (text: string, uppercase: boolean) => {
   const displayText = text || "Ledtråd";
   const casedText = uppercase
@@ -79,6 +103,7 @@ export default function CrosswordCell({
   gridHeight,
   covered,
   selected,
+  rangeSelected,
   highlighted,
   hasProblem,
   uppercaseClues,
@@ -92,6 +117,7 @@ export default function CrosswordCell({
     covered ? "is-covered" : "",
     highlighted ? "is-answer-highlighted" : "",
     hasProblem ? "has-problem" : "",
+    rangeSelected ? "is-range-selected" : "",
     selected ? "is-selected" : "",
   ].filter(Boolean).join(" ");
 
@@ -114,10 +140,20 @@ export default function CrosswordCell({
     return (
       <div className={className} role="gridcell" style={style}
         aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
-        onClick={onSelect} onContextMenu={onContextMenu}>
+        onClick={(event) => onSelect(event.shiftKey)} onContextMenu={onContextMenu}>
         {!covered && (
-          <input value={cell.value} maxLength={1} inputMode="text" aria-label="Bokstav"
-            onFocus={onSelect} onChange={(event) => onLetterChange(event.target.value)} />
+          <>
+            {(cell.wordStarts ?? []).map((direction) => (
+              <WordStartMarker key={direction} direction={direction} />
+            ))}
+            <input
+              value={cell.value}
+              maxLength={1}
+              inputMode="text"
+              aria-label="Bokstav"
+              onChange={(event) => onLetterChange(event.target.value)}
+            />
+          </>
         )}
       </div>
     );
@@ -126,7 +162,7 @@ export default function CrosswordCell({
   if (cell.type === "black") {
     return <div className={className} role="gridcell" style={style}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
-      onClick={onSelect} onContextMenu={onContextMenu} />;
+      onClick={(event) => onSelect(event.shiftKey)} onContextMenu={onContextMenu} />;
   }
 
   const directionOrder: Record<
@@ -148,7 +184,7 @@ export default function CrosswordCell({
   return (
     <div className={className} role="gridcell" style={style}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
-      onClick={onSelect} onContextMenu={onContextMenu}>
+      onClick={(event) => onSelect(event.shiftKey)} onContextMenu={onContextMenu}>
       {!covered && orderedClues.map((clue) => (
         <span className="clue-preview" key={clue.id}>
           <span

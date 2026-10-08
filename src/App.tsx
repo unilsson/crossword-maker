@@ -33,6 +33,10 @@ import type {
   CrosswordImage,
   Direction,
   ImageFit,
+  ImageArrow,
+  ImageArrowDirection,
+  ImageArrowEdge,
+  WordStartDirection,
 } from "./types/crossword";
 import type { WordLexicon, WordListDataset } from "./types/wordlist";
 
@@ -47,6 +51,23 @@ const imagesOverlap = (a: CrosswordImage, b: CrosswordImage) =>
   a.row + a.rowSpan > b.row &&
   a.col < b.col + b.colSpan &&
   a.col + a.colSpan > b.col;
+
+const toggleWordStart = (
+  cell: Cell,
+  direction: WordStartDirection,
+): Cell => {
+  if (cell.type !== "letter") return cell;
+
+  const current = new Set(cell.wordStarts ?? []);
+  if (current.has(direction)) current.delete(direction);
+  else current.add(direction);
+
+  const wordStarts = Array.from(current);
+  return {
+    ...cell,
+    wordStarts: wordStarts.length > 0 ? wordStarts : undefined,
+  };
+};
 
 const directionLabel = (direction: Direction) => {
   if (direction === "right") return "→ Höger";
@@ -71,6 +92,10 @@ export default function App() {
   });
 
   const [selected, setSelected] = useState<Selection>({ row: 0, col: 0 });
+  const [selectionAnchor, setSelectionAnchor] = useState<Selection>({
+    row: 0,
+    col: 0,
+  });
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [imageUploadMode, setImageUploadMode] = useState<ImageUploadMode>("add");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,6 +148,44 @@ export default function App() {
     if (!selected) return null;
     return crossword.cells[selected.row]?.[selected.col] ?? null;
   }, [crossword, selected]);
+
+  const selectedRange = useMemo(() => {
+    if (!selected) return [] as { row: number; col: number }[];
+    if (!selectionAnchor) return [selected];
+
+    if (selectionAnchor.row === selected.row) {
+      const start = Math.min(selectionAnchor.col, selected.col);
+      const end = Math.max(selectionAnchor.col, selected.col);
+      return Array.from({ length: end - start + 1 }, (_, index) => ({
+        row: selected.row,
+        col: start + index,
+      }));
+    }
+
+    if (selectionAnchor.col === selected.col) {
+      const start = Math.min(selectionAnchor.row, selected.row);
+      const end = Math.max(selectionAnchor.row, selected.row);
+      return Array.from({ length: end - start + 1 }, (_, index) => ({
+        row: start + index,
+        col: selected.col,
+      }));
+    }
+
+    return [selected];
+  }, [selected, selectionAnchor]);
+
+  const selectedRangeKeys = useMemo(
+    () => new Set(selectedRange.map((cell) => answerCellKey(cell))),
+    [selectedRange],
+  );
+
+  const selectionHasFill = useMemo(
+    () =>
+      selectedRange.some(
+        ({ row, col }) => Boolean(crossword.cells[row]?.[col]?.fill),
+      ),
+    [crossword, selectedRange],
+  );
 
   const selectedImage = useMemo(
     () => crossword.images.find((image) => image.id === selectedImageId) ?? null,
@@ -219,6 +282,39 @@ export default function App() {
     updateCell(selected.row, selected.col, updater(selectedCell));
   };
 
+  const selectCell = (row: number, col: number, extend = false) => {
+    const next = { row, col };
+
+    if (
+      extend &&
+      selectionAnchor &&
+      (selectionAnchor.row === row || selectionAnchor.col === col)
+    ) {
+      setSelected(next);
+    } else {
+      setSelected(next);
+      setSelectionAnchor(next);
+    }
+
+    setSelectedImageId(null);
+  };
+
+  const applyFillToSelection = (fill?: string) => {
+    if (selectedRange.length === 0 || selectedImage) return;
+    const keys = new Set(selectedRange.map((cell) => answerCellKey(cell)));
+
+    setCrossword((current) => ({
+      ...current,
+      cells: current.cells.map((row, rowIndex) =>
+        row.map((cell, colIndex) =>
+          keys.has(rowIndex + ":" + colIndex)
+            ? { ...cell, fill }
+            : cell,
+        ),
+      ),
+    }));
+  };
+
   const updateSelectedImage = (patch: Partial<CrosswordImage>) => {
     if (!selectedImage) return;
 
@@ -239,6 +335,44 @@ export default function App() {
         image.id === candidate.id ? candidate : image,
       ),
     }));
+  };
+
+  const addImageArrow = () => {
+    if (!selectedImage) return;
+
+    const arrow: ImageArrow = {
+      id: crypto.randomUUID(),
+      edge: "bottom",
+      offset: 0,
+      direction: "right",
+      distance: 1,
+    };
+
+    updateSelectedImage({
+      arrows: [...(selectedImage.arrows ?? []), arrow],
+    });
+  };
+
+  const updateImageArrow = (
+    arrowId: string,
+    patch: Partial<Pick<ImageArrow, "edge" | "offset" | "direction" | "distance">>,
+  ) => {
+    if (!selectedImage) return;
+
+    updateSelectedImage({
+      arrows: (selectedImage.arrows ?? []).map((arrow) =>
+        arrow.id === arrowId ? { ...arrow, ...patch } : arrow,
+      ),
+    });
+  };
+
+  const removeImageArrow = (arrowId: string) => {
+    if (!selectedImage) return;
+    updateSelectedImage({
+      arrows: (selectedImage.arrows ?? []).filter(
+        (arrow) => arrow.id !== arrowId,
+      ),
+    });
   };
 
   const installWordList = async () => {
@@ -318,7 +452,9 @@ export default function App() {
       event.preventDefault();
       updateSelectedCell((cell) => setLetter(cell, event.key));
       const nextCol = Math.min(crossword.width - 1, selected.col + 1);
-      setSelected({ row: selected.row, col: nextCol });
+      const next = { row: selected.row, col: nextCol };
+      setSelected(next);
+      setSelectionAnchor(next);
       return;
     }
 
@@ -332,10 +468,12 @@ export default function App() {
     if (!move) return;
 
     event.preventDefault();
-    setSelected({
+    const next = {
       row: Math.max(0, Math.min(crossword.height - 1, selected.row + move[0])),
       col: Math.max(0, Math.min(crossword.width - 1, selected.col + move[1])),
-    });
+    };
+    setSelected(next);
+    setSelectionAnchor(next);
   };
 
   const downloadJson = () => {
@@ -364,6 +502,7 @@ export default function App() {
 
       setCrossword(migrated);
       setSelected({ row: 0, col: 0 });
+      setSelectionAnchor({ row: 0, col: 0 });
       setSelectedImageId(null);
     } catch {
       window.alert("Kunde inte läsa JSON-filen.");
@@ -404,6 +543,7 @@ export default function App() {
         colSpan: 3,
         fit: "cover",
         alt: "",
+        arrows: [],
       },
       crossword.width,
       crossword.height,
@@ -439,17 +579,20 @@ export default function App() {
     if (image) {
       setSelectedImageId(image.id);
       setSelected(null);
+      setSelectionAnchor(null);
       return;
     }
 
     setSelectedImageId(null);
     setSelected({ row, col });
+    setSelectionAnchor({ row, col });
   };
 
   const reset = () => {
     if (!window.confirm("Skapa ett nytt tomt 15×15-korsord?")) return;
     setCrossword(createEmptyCrossword());
     setSelected({ row: 0, col: 0 });
+    setSelectionAnchor({ row: 0, col: 0 });
     setSelectedImageId(null);
   };
 
@@ -566,17 +709,18 @@ export default function App() {
           <CrosswordGrid
             crossword={crossword}
             selected={selectedImage ? null : selected}
+            selectedRangeCells={selectedImage ? new Set<string>() : selectedRangeKeys}
             selectedImageId={selectedImageId}
             highlightedCells={highlightedCells}
             problemCells={problemCells}
             uppercaseClues={Boolean(crossword.uppercaseClues)}
-            onSelect={(row, col) => {
-              setSelected({ row, col });
-              setSelectedImageId(null);
+            onSelect={(row, col, extend) => {
+              selectCell(row, col, extend);
             }}
             onSelectImage={(imageId) => {
               setSelectedImageId(imageId);
               setSelected(null);
+              setSelectionAnchor(null);
             }}
             onChangeCell={(row, col, cell) =>
               updateCell(
@@ -714,6 +858,128 @@ export default function App() {
                 />
               </label>
 
+              <section className="image-arrow-editor">
+                <div className="image-arrow-heading">
+                  <div>
+                    <strong>Pilar från bilden</strong>
+                    <p className="hint">
+                      Lägg ut startpilar från bildens under- eller högerkant.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={addImageArrow}
+                  >
+                    + Pil
+                  </button>
+                </div>
+
+                {(selectedImage.arrows ?? []).length === 0 ? (
+                  <p className="hint">
+                    Inga bildpilar ännu. De påverkar inte vanlig
+                    ledtrådsanalys.
+                  </p>
+                ) : (
+                  <div className="image-arrow-list">
+                    {(selectedImage.arrows ?? []).map((arrow, index) => {
+                      const maxOffset =
+                        arrow.edge === "bottom"
+                          ? selectedImage.colSpan
+                          : selectedImage.rowSpan;
+
+                      return (
+                        <div className="image-arrow-item" key={arrow.id}>
+                          <div className="image-arrow-item-header">
+                            <strong>Pil {index + 1}</strong>
+                            <button
+                              type="button"
+                              className="text-button"
+                              onClick={() => removeImageArrow(arrow.id)}
+                            >
+                              Ta bort
+                            </button>
+                          </div>
+
+                          <div className="image-arrow-grid">
+                            <label className="field">
+                              <span>Kant</span>
+                              <select
+                                value={arrow.edge}
+                                onChange={(event) =>
+                                  updateImageArrow(arrow.id, {
+                                    edge: event.target.value as ImageArrowEdge,
+                                    offset: 0,
+                                  })
+                                }
+                              >
+                                <option value="bottom">Underkant</option>
+                                <option value="right">Högerkant</option>
+                              </select>
+                            </label>
+
+                            <label className="field">
+                              <span>Position</span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={maxOffset}
+                                value={arrow.offset + 1}
+                                onChange={(event) =>
+                                  updateImageArrow(arrow.id, {
+                                    offset: Math.max(
+                                      0,
+                                      Number(event.target.value) - 1,
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+
+                            <label className="field">
+                              <span>Pekar</span>
+                              <select
+                                value={arrow.direction}
+                                onChange={(event) =>
+                                  updateImageArrow(arrow.id, {
+                                    direction: event.target
+                                      .value as ImageArrowDirection,
+                                  })
+                                }
+                              >
+                                <option value="right">→ Höger</option>
+                                <option value="down">↓ Nedåt</option>
+                              </select>
+                            </label>
+
+                            <label className="field">
+                              <span>Utskjut</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={4}
+                                value={arrow.distance}
+                                onChange={(event) =>
+                                  updateImageArrow(arrow.id, {
+                                    distance: Math.max(
+                                      0,
+                                      Math.min(
+                                        4,
+                                        Number(event.target.value),
+                                      ),
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
               <div className="image-actions">
                 <button
                   type="button"
@@ -796,19 +1062,21 @@ export default function App() {
               <section className="cell-color-section">
                 <div className="cell-color-heading">
                   <div>
-                    <strong>Rutans färg</strong>
-                    <small>Valfri markering för just den här rutan.</small>
+                    <strong>
+                      {selectedRange.length > 1
+                        ? selectedRange.length + " rutors färg"
+                        : "Rutans färg"}
+                    </strong>
+                    <small>
+                      Shift-klicka en annan ruta i samma rad eller kolumn för
+                      att markera ett sammanhängande område.
+                    </small>
                   </div>
-                  {selectedCell.fill && (
+                  {selectionHasFill && (
                     <button
                       type="button"
                       className="text-button"
-                      onClick={() =>
-                        updateSelectedCell((cell) => ({
-                          ...cell,
-                          fill: undefined,
-                        }))
-                      }
+                      onClick={() => applyFillToSelection(undefined)}
                     >
                       Ingen färg
                     </button>
@@ -819,13 +1087,10 @@ export default function App() {
                   <input
                     className="cell-color-picker"
                     type="color"
-                    aria-label="Rutans färg"
+                    aria-label="Markerade rutors färg"
                     value={selectedCell.fill ?? "#fff2a8"}
                     onChange={(event) =>
-                      updateSelectedCell((cell) => ({
-                        ...cell,
-                        fill: event.target.value,
-                      }))
+                      applyFillToSelection(event.target.value)
                     }
                   />
                   <div className="cell-color-presets" aria-label="Färgförslag">
@@ -838,17 +1103,21 @@ export default function App() {
                           aria-label={"Välj färg " + color}
                           title={color}
                           style={{ backgroundColor: color }}
-                          onClick={() =>
-                            updateSelectedCell((cell) => ({
-                              ...cell,
-                              fill: color,
-                            }))
-                          }
+                          onClick={() => applyFillToSelection(color)}
                         />
                       ),
                     )}
                   </div>
                 </div>
+
+                {selectedRange.length > 1 && (
+                  <p className="range-selection-summary">
+                    {selectionAnchor?.row === selected?.row
+                      ? "Vågrät markering"
+                      : "Lodrät markering"}{" "}
+                    · {selectedRange.length} rutor
+                  </p>
+                )}
               </section>
 
               {selectedCell.type === "letter" && (
@@ -866,6 +1135,40 @@ export default function App() {
                     />
                     <small>Stöd för A–Z samt Å, Ä och Ö.</small>
                   </label>
+
+                  <section className="word-start-section">
+                    <div>
+                      <strong>Ordgräns i bildfras</strong>
+                      <p className="hint">
+                        Pilarna betyder bara nytt ord och stoppar inte frasen.
+                      </p>
+                    </div>
+                    <div className="word-start-buttons">
+                      {(["right", "down"] as WordStartDirection[]).map(
+                        (direction) => {
+                          const active = (selectedCell.wordStarts ?? []).includes(
+                            direction,
+                          );
+                          return (
+                            <button
+                              type="button"
+                              key={direction}
+                              className={active ? "active" : "secondary"}
+                              onClick={() =>
+                                updateSelectedCell((cell) =>
+                                  toggleWordStart(cell, direction),
+                                )
+                              }
+                            >
+                              {direction === "right"
+                                ? "→ Nytt ord åt höger"
+                                : "↓ Nytt ord nedåt"}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </section>
 
                   <section className="answer-membership">
                     <h3>Tillhör svar</h3>

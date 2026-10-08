@@ -15,6 +15,9 @@ The editor currently includes:
 - Swedish letters Å, Ä and Ö.
 - Images that can span multiple rows and columns.
 - Optional per-cell background colors, including a free color picker and quick presets.
+- Straight multi-cell color selection: click one cell, then Shift-click another cell in the same row or column to color the whole range at once.
+- Decorative word-start arrows inside image phrases; these mark a new word without stopping or constraining the phrase.
+- Configurable arrows leaving an image from its bottom or right edge, with selectable edge position, final direction and reach.
 - Automatic answer detection from clue arrows.
 - Answer highlighting and reverse lookup from letter cells.
 - Structural validation with clickable errors and warnings.
@@ -29,6 +32,8 @@ The editor currently includes:
 A clue pointing right (`→`) starts in the cell immediately to the right and continues right. A clue pointing down (`↓`) starts immediately below and continues down. A right-then-down clue (`↳`) starts in the cell immediately to the right and then continues downward from that column. A right-then-down +1 clue starts one row below and one column to the right of the clue cell, then continues down. A down-then-right clue starts immediately below the clue cell and then continues right along that row. A down-then-right +1 clue starts one row below and one column to the right of the clue cell, then continues right. Answers stop at the grid edge, a black cell, another clue cell or an image-covered cell.
 
 Derived answers are not stored in project JSON. They are recalculated from the current layout.
+
+Image-phrase arrows are deliberately decorative. A word-start arrow on a letter cell only means “new word here”; it does not stop ordinary answer analysis. Image exit arrows are stored with the image and can be placed at different positions along the image's bottom or right edge.
 
 
 ### Clue typography
