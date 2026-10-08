@@ -525,9 +525,24 @@ export default function App() {
       <section className="workspace">
         <div className="board-panel">
           <div className="board-toolbar">
-            <span>
-              {crossword.width} × {crossword.height}
-            </span>
+            <div className="board-toolbar-left">
+              <span>
+                {crossword.width} × {crossword.height}
+              </span>
+              <label className="toolbar-toggle">
+                <input
+                  type="checkbox"
+                  checked={Boolean(crossword.uppercaseClues)}
+                  onChange={(event) =>
+                    setCrossword((current) => ({
+                      ...current,
+                      uppercaseClues: event.target.checked,
+                    }))
+                  }
+                />
+                <span>Ledtrådar i VERSALER</span>
+              </label>
+            </div>
             <div className="analysis-status" aria-label="Korsordsstatus">
               <span className="status-ok">{analysis.answers.length} svar</span>
               {errorCount > 0 && (
@@ -548,6 +563,7 @@ export default function App() {
             selectedImageId={selectedImageId}
             highlightedCells={highlightedCells}
             problemCells={problemCells}
+            uppercaseClues={Boolean(crossword.uppercaseClues)}
             onSelect={(row, col) => {
               setSelected({ row, col });
               setSelectedImageId(null);
