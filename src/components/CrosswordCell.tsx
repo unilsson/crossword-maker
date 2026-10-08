@@ -17,7 +17,7 @@ interface CrosswordCellProps {
   onLetterChange: (value: string) => void;
 }
 
-const Arrow = ({ direction }: { direction: "right" | "down" }) => (
+const Arrow = ({ direction }: { direction: "right" | "down" | "right-down" }) => (
   <span
     className={"clue-edge-arrow clue-edge-arrow--" + direction}
     aria-hidden="true"
@@ -90,12 +90,18 @@ export default function CrosswordCell({
       onClick={onSelect} onContextMenu={onContextMenu} />;
   }
 
+  const directionOrder: Record<
+    "right" | "right-down" | "down",
+    number
+  > = {
+    right: 0,
+    "right-down": 1,
+    down: 2,
+  };
+
   const orderedClues = [...cell.clues]
     .slice(0, 2)
-    .sort((a, b) => {
-      if (a.direction === b.direction) return 0;
-      return a.direction === "right" ? -1 : 1;
-    });
+    .sort((a, b) => directionOrder[a.direction] - directionOrder[b.direction]);
 
   return (
     <div className={className} role="gridcell" style={style}
