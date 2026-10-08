@@ -11,6 +11,7 @@ The editor currently includes:
 - Letter, black and clue cells.
 - One or two clues per clue cell, with right/down arrows.
 - Project-level toggle for rendering all clue text in uppercase without changing the stored clue text.
+- Automatic Swedish clue hyphenation, with `|` as an optional manual soft-hyphen marker.
 - Swedish letters Å, Ä and Ö.
 - Images that can span multiple rows and columns.
 - Automatic answer detection from clue arrows.
@@ -27,6 +28,11 @@ The editor currently includes:
 A clue pointing right (`→`) starts in the cell immediately to the right. A clue pointing down (`↓`) starts immediately below. The answer continues through letter cells and stops at the grid edge, a black cell, another clue cell or an image-covered cell.
 
 Derived answers are not stored in project JSON. They are recalculated from the current layout.
+
+
+### Clue typography
+
+Clue text uses Swedish automatic hyphenation in the grid. If a clue needs manual typographic control, insert `|` at an allowed break point, for example `männi|skans`. The marker remains visible in the editor field but is rendered as a soft hyphen in the crossword, so a hyphen appears only when the line actually breaks there.
 
 ## Swedish word list
 
