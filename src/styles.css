@@ -313,31 +313,37 @@ button.secondary {
 }
 
 .clue-edge-arrow--right-down-plus-one {
-  right: -10px;
-  bottom: -18px;
+  right: -11px;
+  bottom: -22px;
   width: 11px;
-  height: 18px;
+  height: 22px;
   background:
-    linear-gradient(
-      45deg,
-      transparent 42%,
-      #171717 43%,
-      #171717 57%,
-      transparent 58%
-    ) left top / 9px 9px no-repeat,
-    linear-gradient(#171717, #171717) right bottom 4px / 2px 10px no-repeat;
+    linear-gradient(#171717, #171717) 9px 9px / 2px 8px no-repeat;
+}
+
+.clue-edge-arrow--right-down-plus-one::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 2px;
+  background: #171717;
+  transform: rotate(45deg);
+  transform-origin: left center;
 }
 
 .clue-edge-arrow--right-down-plus-one::after {
   content: "";
   position: absolute;
-  right: -3px;
-  bottom: -1px;
+  top: 16px;
+  left: 10px;
   width: 0;
   height: 0;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
   border-top: 5px solid #171717;
+  transform: translateX(-50%);
 }
 
 .clue-edge-arrow--down-right {
