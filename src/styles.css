@@ -627,3 +627,155 @@ footer {
     justify-content: flex-start;
   }
 }
+
+
+.dictionary-panel {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #ded6ca;
+}
+
+.dictionary-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dictionary-heading h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.dictionary-heading p {
+  margin: 4px 0 0;
+  color: #665f55;
+  font-size: 12px;
+}
+
+.dictionary-heading .secondary {
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+.dictionary-source {
+  margin: 8px 0 14px;
+  color: #81786c;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.custom-word-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.custom-word-row input {
+  min-width: 0;
+  border: 1px solid #bdb5aa;
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: #fff;
+  text-transform: uppercase;
+}
+
+.inspector .custom-word-row button {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.custom-word-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  color: #81786c;
+  font-size: 11px;
+}
+
+.inspector .custom-word-meta .text-button {
+  font-size: 11px;
+}
+
+.candidate-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #ded6ca;
+}
+
+.candidate-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.candidate-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.candidate-heading code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.compact-field {
+  margin: 10px 0;
+}
+
+.compact-field select {
+  padding: 8px;
+  font-size: 12px;
+}
+
+.candidate-count {
+  margin: 10px 0 7px;
+  color: #665f55;
+  font-size: 11px;
+}
+
+.candidate-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.inspector .candidate-word {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #d6cec2;
+  border-radius: 8px;
+  background: #fff;
+  color: #171717;
+  text-align: left;
+}
+
+.inspector .candidate-word:hover {
+  background: #f2ece2;
+}
+
+.candidate-word span {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+}
+
+.candidate-word small {
+  color: #81786c;
+  font-size: 10px;
+}
+
+@media (max-width: 420px) {
+  .candidate-list {
+    grid-template-columns: 1fr;
+  }
+}
