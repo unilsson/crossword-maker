@@ -219,6 +219,11 @@ button.secondary {
   hyphenate-character: "-";
 }
 
+.clue-preview > span.has-manual-hyphens {
+  hyphens: manual;
+  -webkit-hyphens: manual;
+}
+
 .clue-edge-arrow {
   position: absolute;
   z-index: 6;
