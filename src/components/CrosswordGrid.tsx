@@ -6,11 +6,12 @@ import CrosswordImageOverlay from "./CrosswordImageOverlay";
 interface CrosswordGridProps {
   crossword: Crossword;
   selected: { row: number; col: number } | null;
+  selectedRangeCells: Set<string>;
   selectedImageId: string | null;
   highlightedCells: Set<string>;
   problemCells: Set<string>;
   uppercaseClues: boolean;
-  onSelect: (row: number, col: number) => void;
+  onSelect: (row: number, col: number, extend: boolean) => void;
   onSelectImage: (imageId: string) => void;
   onChangeCell: (row: number, col: number, cell: Cell) => void;
   onCycleType: (row: number, col: number) => void;
@@ -19,6 +20,7 @@ interface CrosswordGridProps {
 export default function CrosswordGrid({
   crossword,
   selected,
+  selectedRangeCells,
   selectedImageId,
   highlightedCells,
   problemCells,
@@ -46,10 +48,13 @@ export default function CrosswordGrid({
                 gridHeight={crossword.height}
                 covered={covered}
                 selected={selected?.row === rowIndex && selected?.col === colIndex}
+                rangeSelected={selectedRangeCells.has(cellKey)}
                 highlighted={highlightedCells.has(cellKey)}
                 hasProblem={problemCells.has(cellKey)}
                 uppercaseClues={uppercaseClues}
-                onSelect={() => { if (!covered) onSelect(rowIndex, colIndex); }}
+                onSelect={(extend) => {
+                  if (!covered) onSelect(rowIndex, colIndex, extend);
+                }}
                 onCycleType={() => { if (!covered) onCycleType(rowIndex, colIndex); }}
                 onLetterChange={(value) => {
                   if (covered) return;
