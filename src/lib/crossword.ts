@@ -66,7 +66,7 @@ export const addClue = (cell: ClueCell): ClueCell => {
 
   const used = new Set(cell.clues.map((clue) => clue.direction));
   const direction: Direction =
-    (["right", "down", "right-down"] as const).find(
+    (["right", "down", "right-down", "down-right"] as const).find(
       (candidate) => !used.has(candidate),
     ) ?? "right";
 
@@ -123,7 +123,8 @@ const isCell = (value: unknown): value is Cell => {
         typeof item.text === "string" &&
         (item.direction === "right" ||
           item.direction === "down" ||
-          item.direction === "right-down")
+          item.direction === "right-down" ||
+          item.direction === "down-right")
       );
     });
   }
