@@ -14,6 +14,7 @@ The editor currently includes:
 - Automatic Swedish clue hyphenation, with `|` as an optional manual soft-hyphen marker.
 - Swedish letters Å, Ä and Ö.
 - Images that can span multiple rows and columns.
+- Optional per-cell background colors, including a free color picker and quick presets.
 - Automatic answer detection from clue arrows.
 - Answer highlighting and reverse lookup from letter cells.
 - Structural validation with clickable errors and warnings.
@@ -100,7 +101,7 @@ npm run build
 
 ## Project format
 
-Crossword JSON remains version 2. Sprint 3 adds dictionary state outside the project JSON, so no project-format bump is needed.
+Crossword JSON remains version 2. Optional cell colors are stored directly on cells as a backward-compatible `fill` property. Sprint 3 dictionary state remains outside the project JSON, so no project-format bump is needed.
 
 Image binaries are stored separately in IndexedDB. The downloaded Swedish word list is also cached separately in IndexedDB. Custom words are stored in localStorage.
 
