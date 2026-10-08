@@ -7,8 +7,25 @@ import type {
   ValidationIssue,
 } from "../types/crossword";
 
-const stepForDirection = (direction: Direction): CellPosition =>
-  direction === "right" ? { row: 0, col: 1 } : { row: 1, col: 0 };
+const pathForDirection = (
+  direction: Direction,
+): { start: CellPosition; step: CellPosition } => {
+  if (direction === "right") {
+    return { start: { row: 0, col: 1 }, step: { row: 0, col: 1 } };
+  }
+
+  if (direction === "right-down") {
+    return { start: { row: 0, col: 1 }, step: { row: 1, col: 0 } };
+  }
+
+  return { start: { row: 1, col: 0 }, step: { row: 1, col: 0 } };
+};
+
+const directionText = (direction: Direction): string => {
+  if (direction === "right") return "åt höger";
+  if (direction === "right-down") return "åt höger och sedan nedåt";
+  return "nedåt";
+};
 
 const keyOf = (row: number, col: number) => row + ":" + col;
 
@@ -28,10 +45,10 @@ export const deriveAnswers = (crossword: Crossword): Answer[] => {
       if (imageAtCell(crossword.images, rowIndex, colIndex)) return;
 
       for (const clue of cell.clues) {
-        const step = stepForDirection(clue.direction);
+        const path = pathForDirection(clue.direction);
         const cells: CellPosition[] = [];
-        let currentRow = rowIndex + step.row;
-        let currentCol = colIndex + step.col;
+        let currentRow = rowIndex + path.start.row;
+        let currentCol = colIndex + path.start.col;
 
         while (
           currentRow >= 0 &&
@@ -45,8 +62,8 @@ export const deriveAnswers = (crossword: Crossword): Answer[] => {
           if (currentCell.type !== "letter") break;
 
           cells.push({ row: currentRow, col: currentCol });
-          currentRow += step.row;
-          currentCol += step.col;
+          currentRow += path.step.row;
+          currentCol += path.step.col;
         }
 
         answers.push({
@@ -121,7 +138,7 @@ export const validateCrossword = (
             severity: "warning",
             message:
               "Ledtråden " +
-              (clue.direction === "right" ? "åt höger" : "nedåt") +
+              directionText(clue.direction) +
               " saknar text.",
             cell: { row: rowIndex, col: colIndex },
             clueId: clue.id,
@@ -134,7 +151,7 @@ export const validateCrossword = (
             severity: "error",
             message:
               "Ledtrådens pil " +
-              (clue.direction === "right" ? "åt höger" : "nedåt") +
+              directionText(clue.direction) +
               " leder inte till någon bokstavsruta.",
             cell: { row: rowIndex, col: colIndex },
             clueId: clue.id,
@@ -163,7 +180,7 @@ export const validateCrossword = (
             severity: "error",
             message:
               "Ledtrådsrutan har flera pilar " +
-              (direction === "right" ? "åt höger." : "nedåt."),
+              directionText(direction) + ".",
             cell: { row: rowIndex, col: colIndex },
           });
         }
