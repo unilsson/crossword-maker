@@ -936,3 +936,125 @@ footer {
   outline: 3px solid rgba(199, 157, 38, 0.5);
   outline-offset: -3px;
 }
+
+
+.word-start-section,
+.image-arrow-editor {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid #ded6ca;
+  border-radius: 10px;
+  background: #f8f4ed;
+}
+
+.word-start-section .hint,
+.image-arrow-heading .hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+
+.word-start-buttons {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.inspector .word-start-buttons button {
+  padding: 8px 10px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.inspector .word-start-buttons button.active {
+  background: #171717;
+  color: #fff;
+}
+
+.word-start-marker {
+  position: absolute;
+  z-index: 5;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.word-start-marker path {
+  fill: none;
+  stroke: #171717;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.word-start-marker--right {
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.word-start-marker--down {
+  left: 50%;
+  top: -1px;
+  transform: translateX(-50%);
+}
+
+.crossword-image {
+  overflow: visible;
+}
+
+.image-exit-arrow {
+  position: absolute;
+  z-index: 8;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.image-exit-arrow path {
+  fill: none;
+  stroke: #171717;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.image-arrow-heading,
+.image-arrow-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inspector .image-arrow-heading .secondary {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.image-arrow-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.image-arrow-item {
+  padding-top: 10px;
+  border-top: 1px solid #ded6ca;
+}
+
+.image-arrow-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 8px;
+}
+
+.image-arrow-grid .field {
+  margin: 8px 0 0;
+}
+
+@media (max-width: 420px) {
+  .image-arrow-grid {
+    grid-template-columns: 1fr;
+  }
+}
