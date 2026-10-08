@@ -804,10 +804,10 @@ export default function App() {
                       type="button"
                       className="text-button"
                       onClick={() =>
-                        updateSelectedCell((cell) => {
-                          const { fill: _fill, ...rest } = cell;
-                          return rest as Cell;
-                        })
+                        updateSelectedCell((cell) => ({
+                          ...cell,
+                          fill: undefined,
+                        }))
                       }
                     >
                       Ingen färg
