@@ -53,7 +53,7 @@ export default function CrosswordGrid({
                 hasProblem={problemCells.has(cellKey)}
                 uppercaseClues={uppercaseClues}
                 onSelect={(extend) => {
-                  if (!covered) onSelect(rowIndex, colIndex, extend);
+                  if (!covered) onSelect(rowIndex, colIndex, Boolean(extend));
                 }}
                 onCycleType={() => { if (!covered) onCycleType(rowIndex, colIndex); }}
                 onLetterChange={(value) => {
