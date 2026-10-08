@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent } from "react";
-import type { Cell } from "../types/crossword";
+import type { Cell, Direction } from "../types/crossword";
 
 interface CrosswordCellProps {
   cell: Cell;
@@ -17,12 +17,50 @@ interface CrosswordCellProps {
   onLetterChange: (value: string) => void;
 }
 
-const Arrow = ({ direction }: { direction: "right" | "down" | "right-down" | "down-right" | "right-down-plus-one" | "down-right-plus-one" }) => (
-  <span
-    className={"clue-edge-arrow clue-edge-arrow--" + direction}
-    aria-hidden="true"
-  />
-);
+const arrowGeometry: Record<
+  Direction,
+  { viewBox: string; path: string }
+> = {
+  right: {
+    viewBox: "0 0 20 24",
+    path: "M1 12 H18 M14 8 L18 12 L14 16",
+  },
+  down: {
+    viewBox: "0 0 24 20",
+    path: "M12 1 V18 M8 14 L12 18 L16 14",
+  },
+  "right-down": {
+    viewBox: "0 0 20 24",
+    path: "M1 4 H12 Q14 4 14 6 V21 M10 17 L14 21 L18 17",
+  },
+  "down-right": {
+    viewBox: "0 0 24 20",
+    path: "M4 1 V12 Q4 14 6 14 H21 M17 10 L21 14 L17 18",
+  },
+  "right-down-plus-one": {
+    viewBox: "0 0 20 30",
+    path: "M0 0 L9 9 Q11 11 11 14 V26 M7 22 L11 26 L15 22",
+  },
+  "down-right-plus-one": {
+    viewBox: "0 0 30 20",
+    path: "M0 0 L9 9 Q11 11 14 11 H26 M22 7 L26 11 L22 15",
+  },
+};
+
+const Arrow = ({ direction }: { direction: Direction }) => {
+  const geometry = arrowGeometry[direction];
+
+  return (
+    <svg
+      className={"clue-edge-arrow clue-edge-arrow--" + direction}
+      viewBox={geometry.viewBox}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d={geometry.path} />
+    </svg>
+  );
+};
 
 const formatClueText = (text: string, uppercase: boolean) => {
   const displayText = text || "Ledtråd";
