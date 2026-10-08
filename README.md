@@ -15,6 +15,7 @@ The editor currently includes:
 - Swedish letters Å, Ä and Ö.
 - Images that can span multiple rows and columns.
 - Optional per-cell background colors, including a free color picker and quick presets.
+- Straight multi-cell color selection: click one cell, then Shift-click another cell in the same row or column to color the whole range at once.
 - Decorative word-start arrows inside image phrases; these mark a new word without stopping or constraining the phrase.
 - Configurable arrows leaving an image from its bottom or right edge, with selectable edge position, final direction and reach.
 - Automatic answer detection from clue arrows.
