@@ -103,7 +103,12 @@ export default function CrosswordCell({
       onClick={onSelect} onContextMenu={onContextMenu}>
       {!covered && orderedClues.map((clue) => (
         <span className="clue-preview" key={clue.id}>
-          <span lang="sv">{formatClueText(clue.text, uppercaseClues)}</span>
+          <span
+            lang="sv"
+            className={clue.text.includes("|") ? "has-manual-hyphens" : undefined}
+          >
+            {formatClueText(clue.text, uppercaseClues)}
+          </span>
           <Arrow direction={clue.direction} />
         </span>
       ))}
