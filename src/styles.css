@@ -1058,3 +1058,21 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.crossword-cell.is-range-selected {
+  outline: 2px solid rgba(53, 111, 90, 0.78);
+  outline-offset: -3px;
+  z-index: 3;
+}
+
+.crossword-cell.is-range-selected.is-selected {
+  outline: none;
+}
+
+.range-selection-summary {
+  margin: 9px 0 0;
+  color: #356f5a;
+  font-size: 11px;
+  font-weight: 800;
+}
