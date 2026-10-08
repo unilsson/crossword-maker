@@ -291,6 +291,27 @@ button.secondary {
   border-top: 5px solid #171717;
 }
 
+.clue-edge-arrow--right-down {
+  top: 50%;
+  right: -10px;
+  width: 10px;
+  height: 14px;
+  border-top: 2px solid #171717;
+  border-right: 2px solid #171717;
+}
+
+.clue-edge-arrow--right-down::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  bottom: -1px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #171717;
+}
+
 .inspector {
   position: sticky;
   top: 16px;
