@@ -13,10 +13,11 @@ interface CrosswordCellProps {
   gridHeight: number;
   covered: boolean;
   selected: boolean;
+  rangeSelected: boolean;
   highlighted: boolean;
   hasProblem: boolean;
   uppercaseClues: boolean;
-  onSelect: () => void;
+  onSelect: (extend?: boolean) => void;
   onCycleType: () => void;
   onLetterChange: (value: string) => void;
 }
@@ -102,6 +103,7 @@ export default function CrosswordCell({
   gridHeight,
   covered,
   selected,
+  rangeSelected,
   highlighted,
   hasProblem,
   uppercaseClues,
@@ -115,6 +117,7 @@ export default function CrosswordCell({
     covered ? "is-covered" : "",
     highlighted ? "is-answer-highlighted" : "",
     hasProblem ? "has-problem" : "",
+    rangeSelected ? "is-range-selected" : "",
     selected ? "is-selected" : "",
   ].filter(Boolean).join(" ");
 
@@ -137,14 +140,14 @@ export default function CrosswordCell({
     return (
       <div className={className} role="gridcell" style={style}
         aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
-        onClick={onSelect} onContextMenu={onContextMenu}>
+        onClick={(event) => onSelect(event.shiftKey)} onContextMenu={onContextMenu}>
         {!covered && (
           <>
             {(cell.wordStarts ?? []).map((direction) => (
               <WordStartMarker key={direction} direction={direction} />
             ))}
             <input value={cell.value} maxLength={1} inputMode="text" aria-label="Bokstav"
-              onFocus={onSelect} onChange={(event) => onLetterChange(event.target.value)} />
+              onFocus={() => onSelect(false)} onChange={(event) => onLetterChange(event.target.value)} />
           </>
         )}
       </div>
@@ -154,7 +157,7 @@ export default function CrosswordCell({
   if (cell.type === "black") {
     return <div className={className} role="gridcell" style={style}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
-      onClick={onSelect} onContextMenu={onContextMenu} />;
+      onClick={(event) => onSelect(event.shiftKey)} onContextMenu={onContextMenu} />;
   }
 
   const directionOrder: Record<
@@ -176,7 +179,7 @@ export default function CrosswordCell({
   return (
     <div className={className} role="gridcell" style={style}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
-      onClick={onSelect} onContextMenu={onContextMenu}>
+      onClick={(event) => onSelect(event.shiftKey)} onContextMenu={onContextMenu}>
       {!covered && orderedClues.map((clue) => (
         <span className="clue-preview" key={clue.id}>
           <span
