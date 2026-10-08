@@ -14,6 +14,18 @@ import {
   updateClue,
 } from "./lib/crossword";
 import { deleteImageAsset, saveImageAsset } from "./lib/imageStore";
+import {
+  buildLexicon,
+  installSwedishWordList,
+  isValidCrosswordWord,
+  loadCachedWordList,
+  loadCustomWords,
+  normalizeCrosswordWord,
+  saveCustomWords,
+  searchWords,
+  WORD_LIST_LICENSE,
+  WORD_LIST_SOURCE_NAME,
+} from "./lib/wordlist";
 import type {
   Answer,
   Cell,
@@ -22,6 +34,7 @@ import type {
   Direction,
   ImageFit,
 } from "./types/crossword";
+import type { WordLexicon, WordListDataset } from "./types/wordlist";
 
 const STORAGE_KEY = "crossword-maker.current";
 
@@ -56,10 +69,47 @@ export default function App() {
   const [imageUploadMode, setImageUploadMode] = useState<ImageUploadMode>("add");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [wordDataset, setWordDataset] = useState<WordListDataset | null>(null);
+  const [lexicon, setLexicon] = useState<WordLexicon | null>(null);
+  const [wordListState, setWordListState] = useState<
+    "checking" | "not-installed" | "installing" | "ready" | "error"
+  >("checking");
+  const [wordListError, setWordListError] = useState("");
+  const [customWords, setCustomWords] = useState<string[]>(() => loadCustomWords());
+  const [customWordInput, setCustomWordInput] = useState("");
+  const [activeAnswerId, setActiveAnswerId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(crossword));
   }, [crossword]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadCachedWordList()
+      .then((dataset) => {
+        if (cancelled) return;
+        if (!dataset) {
+          setWordListState("not-installed");
+          return;
+        }
+
+        setWordDataset(dataset);
+        setLexicon(buildLexicon(dataset.words));
+        setWordListState("ready");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setWordListError(
+          error instanceof Error ? error.message : "Kunde inte läsa ordlistan.",
+        );
+        setWordListState("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const analysis = useMemo(() => analyzeCrossword(crossword), [crossword]);
 
@@ -88,6 +138,11 @@ export default function App() {
 
     return [];
   }, [analysis, selected, selectedCell, selectedImage]);
+
+  const activeAnswer =
+    selectedAnswers.find((answer) => answer.id === activeAnswerId) ??
+    selectedAnswers[0] ??
+    null;
 
   const highlightedCells = useMemo(() => {
     const highlighted = new Set<string>();
@@ -121,6 +176,24 @@ export default function App() {
         return cell.type === "letter" && cell.value ? cell.value : "·";
       })
       .join("");
+
+  const answerSearchPattern = (answer: Answer) =>
+    answer.cells
+      .map(({ row, col }) => {
+        const cell = crossword.cells[row][col];
+        return cell.type === "letter" && cell.value ? cell.value : ".";
+      })
+      .join("");
+
+  const wordSearch = useMemo(() => {
+    if (!lexicon || !activeAnswer || activeAnswer.cells.length === 0) return null;
+    return searchWords(
+      lexicon,
+      customWords,
+      answerSearchPattern(activeAnswer),
+      40,
+    );
+  }, [activeAnswer, crossword, customWords, lexicon]);
 
   const updateCell = (row: number, col: number, nextCell: Cell) => {
     setCrossword((current) => ({
@@ -158,6 +231,64 @@ export default function App() {
       ...current,
       images: current.images.map((image) =>
         image.id === candidate.id ? candidate : image,
+      ),
+    }));
+  };
+
+  const installWordList = async () => {
+    setWordListState("installing");
+    setWordListError("");
+
+    try {
+      const dataset = await installSwedishWordList();
+      setWordDataset(dataset);
+      setLexicon(buildLexicon(dataset.words));
+      setWordListState("ready");
+    } catch (error) {
+      setWordListError(
+        error instanceof Error ? error.message : "Kunde inte installera ordlistan.",
+      );
+      setWordListState("error");
+    }
+  };
+
+  const addCustomWord = () => {
+    const word = normalizeCrosswordWord(customWordInput);
+    if (!isValidCrosswordWord(word)) {
+      window.alert("Egna ord får bara innehålla A–Z samt Å, Ä och Ö.");
+      return;
+    }
+
+    const next = Array.from(new Set([...customWords, word]));
+    setCustomWords(next);
+    saveCustomWords(next);
+    setCustomWordInput("");
+  };
+
+  const clearCustomWords = () => {
+    if (customWords.length === 0) return;
+    if (!window.confirm("Ta bort alla egna ord ur ordlistan?")) return;
+    setCustomWords([]);
+    saveCustomWords([]);
+  };
+
+  const fillAnswer = (answer: Answer, word: string) => {
+    if (word.length !== answer.cells.length) return;
+
+    const letters = new Map<string, string>();
+    answer.cells.forEach((cell, index) => {
+      letters.set(answerCellKey(cell), word[index]);
+    });
+
+    setCrossword((current) => ({
+      ...current,
+      cells: current.cells.map((row, rowIndex) =>
+        row.map((cell, colIndex) => {
+          const value = letters.get(rowIndex + ":" + colIndex);
+          return value !== undefined && cell.type === "letter"
+            ? { ...cell, value }
+            : cell;
+        }),
       ),
     }));
   };
@@ -333,7 +464,7 @@ export default function App() {
             }
           />
           <p className="subtitle">
-            Editor för svenska korsord med strukturanalys, ledtrådar och bilder.
+            Editor för svenska korsord med strukturanalys, ordlista, ledtrådar och bilder.
           </p>
         </div>
 
@@ -794,12 +925,160 @@ export default function App() {
               )}
             </>
           )}
+
+          <section className="dictionary-panel">
+            <div className="dictionary-heading">
+              <div>
+                <h2>Ordlista</h2>
+                <p>
+                  {wordListState === "ready" && wordDataset
+                    ? wordDataset.words.length.toLocaleString("sv-SE") + " svenska ord"
+                    : wordListState === "installing"
+                      ? "Hämtar och indexerar ord…"
+                      : wordListState === "checking"
+                        ? "Kontrollerar lokal ordlista…"
+                        : "Ingen svensk ordlista installerad"}
+                </p>
+              </div>
+
+              {(wordListState === "not-installed" ||
+                wordListState === "error") && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => void installWordList()}
+                >
+                  Installera
+                </button>
+              )}
+
+              {wordListState === "ready" && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => void installWordList()}
+                >
+                  Uppdatera
+                </button>
+              )}
+            </div>
+
+            {wordListState === "error" && (
+              <p className="inline-issue inline-issue--error">
+                {wordListError || "Kunde inte läsa ordlistan."}
+              </p>
+            )}
+
+            <p className="dictionary-source">
+              Källa: {WORD_LIST_SOURCE_NAME} · {WORD_LIST_LICENSE}
+            </p>
+
+            <div className="custom-word-row">
+              <input
+                value={customWordInput}
+                placeholder="Lägg till eget ord"
+                aria-label="Eget ord"
+                onChange={(event) => setCustomWordInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addCustomWord();
+                  }
+                }}
+              />
+              <button type="button" onClick={addCustomWord}>
+                Lägg till
+              </button>
+            </div>
+
+            <div className="custom-word-meta">
+              <span>{customWords.length} egna ord</span>
+              {customWords.length > 0 && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={clearCustomWords}
+                >
+                  Rensa egna
+                </button>
+              )}
+            </div>
+
+            {activeAnswer && (
+              <section className="candidate-section">
+                <div className="candidate-heading">
+                  <h3>Ordförslag</h3>
+                  <code>{answerPattern(activeAnswer)}</code>
+                </div>
+
+                {selectedAnswers.length > 1 && (
+                  <label className="field compact-field">
+                    <span>Aktivt svar</span>
+                    <select
+                      value={activeAnswer.id}
+                      onChange={(event) => setActiveAnswerId(event.target.value)}
+                    >
+                      {selectedAnswers.map((answer) => (
+                        <option value={answer.id} key={answer.id}>
+                          {directionLabel(answer.direction)} ·{" "}
+                          {answer.clueText || "Utan ledtrådstext"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {wordListState !== "ready" || !lexicon ? (
+                  <p className="hint">
+                    Installera ordlistan för att söka svenska ord som passar
+                    bokstavsmönstret.
+                  </p>
+                ) : activeAnswer.cells.length === 0 ? (
+                  <p className="hint">Ledtråden har inga svarsrutor.</p>
+                ) : wordSearch && wordSearch.total > 0 ? (
+                  <>
+                    <p className="candidate-count">
+                      {wordSearch.total.toLocaleString("sv-SE")} träffar
+                      {wordSearch.total > wordSearch.matches.length
+                        ? " · visar de första " + wordSearch.matches.length
+                        : ""}
+                    </p>
+                    <div className="candidate-list">
+                      {wordSearch.matches.map((candidate) => (
+                        <button
+                          type="button"
+                          className="candidate-word"
+                          key={candidate.source + ":" + candidate.word}
+                          onClick={() => fillAnswer(activeAnswer, candidate.word)}
+                          title={
+                            candidate.source === "custom"
+                              ? "Eget ord"
+                              : WORD_LIST_SOURCE_NAME
+                          }
+                        >
+                          <span>{candidate.word}</span>
+                          <small>
+                            {candidate.length} ·{" "}
+                            {candidate.source === "custom" ? "eget" : "ordlista"}
+                          </small>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="hint">
+                    Inga ord i ordlistan matchar det aktuella mönstret.
+                  </p>
+                )}
+              </section>
+            )}
+          </section>
         </aside>
       </section>
 
       <footer>
-        Svar och validering räknas fram från rutnätet och sparas inte dubbelt i
-        projektfilen.
+        Svar och validering räknas fram från rutnätet. Den svenska ordlistan
+        cachas lokalt i IndexedDB och egna ord sparas i webbläsaren.
       </footer>
     </main>
   );

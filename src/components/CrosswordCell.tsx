@@ -76,11 +76,18 @@ export default function CrosswordCell({
       onClick={onSelect} onContextMenu={onContextMenu} />;
   }
 
+  const orderedClues = [...cell.clues]
+    .slice(0, 2)
+    .sort((a, b) => {
+      if (a.direction === b.direction) return 0;
+      return a.direction === "right" ? -1 : 1;
+    });
+
   return (
     <div className={className} role="gridcell" style={style}
       aria-label={"Rad " + (row + 1) + ", kolumn " + (col + 1) + suffix}
       onClick={onSelect} onContextMenu={onContextMenu}>
-      {!covered && cell.clues.slice(0, 2).map((clue) => (
+      {!covered && orderedClues.map((clue) => (
         <span className="clue-preview" key={clue.id}>
           <span>{clue.text || "Ledtråd"}</span>
           <Arrow direction={clue.direction} />

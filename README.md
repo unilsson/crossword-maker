@@ -1,8 +1,8 @@
 # Crossword Maker
 
-A browser-based editor for **Swedish/Scandinavian-style crosswords**: clue text lives inside the grid, arrows indicate answer direction, images can occupy multi-cell areas, and the editor derives answer structure automatically.
+A browser-based editor for **Swedish/Scandinavian-style crosswords**: clue text lives inside the grid, arrows indicate answer direction, images can occupy multi-cell areas, answer structure is derived automatically, and a Swedish word list can suggest matching words.
 
-## Sprint 2
+## Sprint 3
 
 The editor currently includes:
 
@@ -12,32 +12,58 @@ The editor currently includes:
 - One or two clues per clue cell, with right/down arrows.
 - Swedish letters Å, Ä and Ö.
 - Images that can span multiple rows and columns.
-- Image positioning, resizing, cover/contain fitting, replacement and removal.
-- Image assets stored locally in IndexedDB.
 - Automatic answer detection from clue arrows.
-- Answer length and current letter pattern in the inspector.
-- Highlighting of answer cells when selecting a clue or letter cell.
-- Reverse lookup showing which answers a letter cell belongs to.
+- Answer highlighting and reverse lookup from letter cells.
 - Structural validation with clickable errors and warnings.
-- Image areas treated as blockers by answer detection.
-- Autosave in the browser using localStorage.
-- Import/export of the crossword structure as JSON.
-- Automatic migration of Sprint 1 project JSON to the current format.
+- Optional Swedish dictionary installation with local IndexedDB caching.
+- Pattern-based word lookup for a selected answer.
+- Custom user words stored locally in the browser.
+- One-click insertion of a matching candidate into the selected answer.
+- Autosave in localStorage and JSON import/export.
 
 ### Answer rules
 
-A clue pointing right (`→`) starts in the cell immediately to the right. A clue pointing down (`↓`) starts immediately below. The answer continues through letter cells and stops at:
+A clue pointing right (`→`) starts in the cell immediately to the right. A clue pointing down (`↓`) starts immediately below. The answer continues through letter cells and stops at the grid edge, a black cell, another clue cell or an image-covered cell.
 
-- the edge of the grid;
-- a black cell;
-- another clue cell;
-- an image-covered cell.
+Derived answers are not stored in project JSON. They are recalculated from the current layout.
 
-Derived answers are not stored in project JSON. They are recalculated from the current layout, so there is no duplicated answer structure that can become stale.
+## Swedish word list
 
-### Validation
+Sprint 3 uses the public **Martin Lindhe Swedish word list** as its optional base dictionary:
 
-Sprint 2 currently reports:
+- Source: https://github.com/martinlindhe/wordlist_swedish
+- License: MIT
+- Upstream description: alphabetically sorted distinct Swedish spellings; names are not included.
+
+The list is **not bundled into this repository**. The user explicitly installs it from the editor. It is then fetched from the upstream raw file, normalized to uppercase Swedish crossword letters, filtered to entries containing only A–Z/Å/Ä/Ö, and cached in IndexedDB.
+
+This keeps the application repository small and makes the external data source and license explicit.
+
+### Candidate lookup
+
+When a selected letter or clue cell belongs to an answer, Sprint 3 can search the installed dictionary by:
+
+- exact answer length;
+- all letters already present in the answer;
+- Swedish letters Å, Ä and Ö.
+
+For example, the pattern `H··D` only returns four-letter words whose first letter is H and last letter is D.
+
+Candidate metadata currently includes:
+
+- normalized word;
+- word length;
+- source (`ordlista` or `eget`).
+
+Clicking a candidate fills the corresponding answer cells. Existing crossing letters are safe because candidates are filtered against the current pattern before they are shown.
+
+### Custom words
+
+Users can add project-independent custom words from the inspector. Custom words are normalized and validated using the same A–Z/Å/Ä/Ö rules and are stored in localStorage. Custom matches are shown before base-dictionary matches.
+
+## Validation
+
+Sprint 2/3 reports:
 
 - clue arrows that do not lead to any letter cells;
 - one-letter answers as warnings;
@@ -48,16 +74,6 @@ Sprint 2 currently reports:
 
 Click a validation item to jump to the relevant cell or image.
 
-### Controls
-
-- **Left click**: select a cell or image.
-- **Right click a free cell**: cycle cell type: letter → black → clue → letter.
-- When a letter cell is selected, type A–Z/Å/Ä/Ö.
-- Arrow keys move the cell selection.
-- Use the inspector to edit clue text and arrow direction.
-- Select a cell and click **+ Bild** to place an image with its top-left corner there.
-- Select an image to move it, change its size, choose cover/contain, replace it or remove it.
-
 ## Run locally
 
 Requires a recent Node.js version.
@@ -67,6 +83,8 @@ npm install
 npm run dev
 ```
 
+Then open the URL printed by Vite.
+
 Build a production bundle with:
 
 ```bash
@@ -75,15 +93,15 @@ npm run build
 
 ## Project format
 
-Crossword JSON remains version 2. Sprint 2 adds derived analysis only, so no project-format bump is needed.
+Crossword JSON remains version 2. Sprint 3 adds dictionary state outside the project JSON, so no project-format bump is needed.
 
-Image binaries are intentionally not embedded in JSON. They are stored in the browser's IndexedDB and referenced through `assetId`. A portable project bundle is a future feature.
+Image binaries are stored separately in IndexedDB. The downloaded Swedish word list is also cached separately in IndexedDB. Custom words are stored in localStorage.
 
 See [docs/design.md](docs/design.md) for design notes.
 
 ## Planned next steps
 
-1. Add a Swedish word list and word metadata.
-2. Add assisted/automatic fill.
+1. Add richer word metadata and ranking/frequency data.
+2. Add assisted multi-answer fill and automatic fill/backtracking.
 3. Generate clue suggestions with AI.
 4. Add portable project bundles plus print/PDF and interactive publishing.

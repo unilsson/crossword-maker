@@ -68,3 +68,52 @@ A reverse index maps every answer cell back to its answer or answers. This enabl
 Validation is also derived. Each issue has a severity, message and grid position, plus a clue ID when the issue belongs to a specific clue. The UI uses these issues both for the validation list and for visual markers in the grid.
 
 Because answers and issues are derived rather than persisted, editing a cell, clue direction or image placement can never leave stored answer metadata out of sync.
+
+
+## Sprint 3: dictionary layer
+
+Sprint 3 adds a dictionary service without changing the persisted crossword schema.
+
+The dictionary is deliberately separate from project JSON. A crossword project stores the puzzle; dictionary data is a reusable local resource.
+
+### Base dictionary
+
+The first supported source is Martin Lindhe's Swedish word list (MIT licensed). It is downloaded on demand rather than committed to the application repository. The browser caches the normalized dataset in a dedicated IndexedDB database.
+
+During import, entries are:
+
+- Unicode-normalized;
+- converted to Swedish uppercase;
+- restricted to A–Z, Å, Ä and Ö;
+- deduplicated.
+
+The in-memory lexicon is indexed by word length with a `Map<number, string[]>`. That makes candidate lookup scan only words of the required length rather than the complete dictionary.
+
+### Candidate matching
+
+A derived answer is converted to a search pattern where filled letters remain literal and empty cells become `.`.
+
+Example:
+
+```text
+H··D
+```
+
+A candidate must have exactly the same length and match every known letter. Candidate results include source metadata and are capped in the UI while still reporting the total number of matches.
+
+Custom words are searched first and base-dictionary words second. Duplicate spellings are only counted once.
+
+### Filling a candidate
+
+Choosing a candidate writes its letters into the already-derived answer cells. Since the candidate was matched against the current answer pattern, it cannot overwrite a conflicting crossing letter.
+
+This is intentionally a small, local form of assistance. Full multi-answer search, constraint propagation and backtracking remain deferred to the next fill-focused sprint.
+
+### Storage
+
+- Crossword structure: localStorage / exported JSON.
+- Image binaries: IndexedDB.
+- Base Swedish dictionary: separate IndexedDB database.
+- Custom words: localStorage.
+
+Keeping these concerns separate avoids inflating project JSON and allows the dictionary to be reused across puzzles.
