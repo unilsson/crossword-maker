@@ -185,7 +185,7 @@ button.secondary {
   overflow: visible;
   background: #ebe4d8;
   font-size: clamp(5px, 0.75vw, 10px);
-  text-align: left;
+  text-align: center;
   z-index: 1;
 }
 
