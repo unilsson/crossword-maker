@@ -43,3 +43,29 @@ export interface Crossword {
   cells: Cell[][];
   images: CrosswordImage[];
 }
+
+
+export interface CellPosition {
+  row: number;
+  col: number;
+}
+
+export interface Answer {
+  id: string;
+  clueId: string;
+  clueText: string;
+  clueCell: CellPosition;
+  direction: Direction;
+  cells: CellPosition[];
+  value: string;
+}
+
+export type ValidationSeverity = "error" | "warning";
+
+export interface ValidationIssue {
+  id: string;
+  severity: ValidationSeverity;
+  message: string;
+  cell: CellPosition;
+  clueId?: string;
+}

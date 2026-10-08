@@ -7,6 +7,8 @@ interface CrosswordGridProps {
   crossword: Crossword;
   selected: { row: number; col: number } | null;
   selectedImageId: string | null;
+  highlightedCells: Set<string>;
+  problemCells: Set<string>;
   onSelect: (row: number, col: number) => void;
   onSelectImage: (imageId: string) => void;
   onChangeCell: (row: number, col: number, cell: Cell) => void;
@@ -14,7 +16,15 @@ interface CrosswordGridProps {
 }
 
 export default function CrosswordGrid({
-  crossword, selected, selectedImageId, onSelect, onSelectImage, onChangeCell, onCycleType,
+  crossword,
+  selected,
+  selectedImageId,
+  highlightedCells,
+  problemCells,
+  onSelect,
+  onSelectImage,
+  onChangeCell,
+  onCycleType,
 }: CrosswordGridProps) {
   return (
     <div className="crossword-grid-shell">
@@ -22,10 +32,11 @@ export default function CrosswordGrid({
         {crossword.cells.flatMap((row, rowIndex) =>
           row.map((cell, colIndex) => {
             const covered = Boolean(imageAtCell(crossword.images, rowIndex, colIndex));
+            const cellKey = rowIndex + ":" + colIndex;
 
             return (
               <CrosswordCell
-                key={rowIndex + "-" + colIndex}
+                key={cellKey}
                 cell={cell}
                 row={rowIndex}
                 col={colIndex}
@@ -33,6 +44,8 @@ export default function CrosswordGrid({
                 gridHeight={crossword.height}
                 covered={covered}
                 selected={selected?.row === rowIndex && selected?.col === colIndex}
+                highlighted={highlightedCells.has(cellKey)}
+                hasProblem={problemCells.has(cellKey)}
                 onSelect={() => { if (!covered) onSelect(rowIndex, colIndex); }}
                 onCycleType={() => { if (!covered) onCycleType(rowIndex, colIndex); }}
                 onLetterChange={(value) => {

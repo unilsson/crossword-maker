@@ -1,18 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import CrosswordGrid from "./components/CrosswordGrid";
+import { analyzeCrossword, answerCellKey } from "./lib/analysis";
 import {
   addClue,
   clampImageToGrid,
   createEmptyCrossword,
   cycleCellType,
+  imageAtCell,
   migrateCrossword,
   removeClue,
   setLetter,
   updateClue,
 } from "./lib/crossword";
 import { deleteImageAsset, saveImageAsset } from "./lib/imageStore";
-import type { Cell, Crossword, CrosswordImage, Direction, ImageFit } from "./types/crossword";
+import type {
+  Answer,
+  Cell,
+  Crossword,
+  CrosswordImage,
+  Direction,
+  ImageFit,
+} from "./types/crossword";
 
 const STORAGE_KEY = "crossword-maker.current";
 
@@ -25,6 +34,9 @@ const imagesOverlap = (a: CrosswordImage, b: CrosswordImage) =>
   a.row + a.rowSpan > b.row &&
   a.col < b.col + b.colSpan &&
   a.col + a.colSpan > b.col;
+
+const directionLabel = (direction: Direction) =>
+  direction === "right" ? "→ Höger" : "↓ Nedåt";
 
 export default function App() {
   const [crossword, setCrossword] = useState<Crossword>(() => {
@@ -49,6 +61,8 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(crossword));
   }, [crossword]);
 
+  const analysis = useMemo(() => analyzeCrossword(crossword), [crossword]);
+
   const selectedCell = useMemo(() => {
     if (!selected) return null;
     return crossword.cells[selected.row]?.[selected.col] ?? null;
@@ -58,6 +72,55 @@ export default function App() {
     () => crossword.images.find((image) => image.id === selectedImageId) ?? null,
     [crossword.images, selectedImageId],
   );
+
+  const selectedAnswers = useMemo<Answer[]>(() => {
+    if (!selected || !selectedCell || selectedImage) return [];
+
+    if (selectedCell.type === "letter") {
+      return analysis.answersByCell.get(answerCellKey(selected)) ?? [];
+    }
+
+    if (selectedCell.type === "clue") {
+      return selectedCell.clues
+        .map((clue) => analysis.answersByClueId.get(clue.id))
+        .filter((answer): answer is Answer => Boolean(answer));
+    }
+
+    return [];
+  }, [analysis, selected, selectedCell, selectedImage]);
+
+  const highlightedCells = useMemo(() => {
+    const highlighted = new Set<string>();
+    for (const answer of selectedAnswers) {
+      for (const cell of answer.cells) {
+        highlighted.add(answerCellKey(cell));
+      }
+    }
+    return highlighted;
+  }, [selectedAnswers]);
+
+  const problemCells = useMemo(
+    () =>
+      new Set(
+        analysis.issues.map((issue) => answerCellKey(issue.cell)),
+      ),
+    [analysis.issues],
+  );
+
+  const errorCount = analysis.issues.filter(
+    (issue) => issue.severity === "error",
+  ).length;
+  const warningCount = analysis.issues.filter(
+    (issue) => issue.severity === "warning",
+  ).length;
+
+  const answerPattern = (answer: Answer) =>
+    answer.cells
+      .map(({ row, col }) => {
+        const cell = crossword.cells[row][col];
+        return cell.type === "letter" && cell.value ? cell.value : "·";
+      })
+      .join("");
 
   const updateCell = (row: number, col: number, nextCell: Cell) => {
     setCrossword((current) => ({
@@ -111,7 +174,10 @@ export default function App() {
       return;
     }
 
-    if (/^[a-zåäöA-ZÅÄÖ]$/.test(event.key) && selectedCell?.type === "letter") {
+    if (
+      /^[a-zåäöA-ZÅÄÖ]$/.test(event.key) &&
+      selectedCell?.type === "letter"
+    ) {
       event.preventDefault();
       updateSelectedCell((cell) => setLetter(cell, event.key));
       const nextCol = Math.min(crossword.width - 1, selected.col + 1);
@@ -120,7 +186,10 @@ export default function App() {
     }
 
     const moves: Record<string, [number, number]> = {
-      ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1],
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+      ArrowLeft: [0, -1],
+      ArrowRight: [0, 1],
     };
     const move = moves[event.key];
     if (!move) return;
@@ -133,10 +202,14 @@ export default function App() {
   };
 
   const downloadJson = () => {
-    const blob = new Blob([JSON.stringify(crossword, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(crossword, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
-    const safeTitle = crossword.title.trim().replace(/\s+/g, "-").toLowerCase() || "korsord";
+    const safeTitle =
+      crossword.title.trim().replace(/\s+/g, "-").toLowerCase() || "korsord";
+
     anchor.href = url;
     anchor.download = safeTitle + ".json";
     anchor.click();
@@ -151,6 +224,7 @@ export default function App() {
         window.alert("Filen ser inte ut som ett Crossword Maker-projekt.");
         return;
       }
+
       setCrossword(migrated);
       setSelected({ row: 0, col: 0 });
       setSelectedImageId(null);
@@ -175,22 +249,28 @@ export default function App() {
     }
 
     if (!selected) {
-      window.alert("Välj först den ruta där bildens övre vänstra hörn ska ligga.");
+      window.alert(
+        "Välj först den ruta där bildens övre vänstra hörn ska ligga.",
+      );
       return;
     }
 
     const assetId = crypto.randomUUID();
-    const image: CrosswordImage = clampImageToGrid({
-      id: crypto.randomUUID(),
-      assetId,
-      fileName: file.name,
-      row: selected.row,
-      col: selected.col,
-      rowSpan: 3,
-      colSpan: 3,
-      fit: "cover",
-      alt: "",
-    }, crossword.width, crossword.height);
+    const image: CrosswordImage = clampImageToGrid(
+      {
+        id: crypto.randomUUID(),
+        assetId,
+        fileName: file.name,
+        row: selected.row,
+        col: selected.col,
+        rowSpan: 3,
+        colSpan: 3,
+        fit: "cover",
+        alt: "",
+      },
+      crossword.width,
+      crossword.height,
+    );
 
     if (crossword.images.some((existing) => imagesOverlap(image, existing))) {
       window.alert("Det finns redan en bild på den platsen.");
@@ -198,19 +278,35 @@ export default function App() {
     }
 
     await saveImageAsset(assetId, file);
-    setCrossword((current) => ({ ...current, images: [...current.images, image] }));
+    setCrossword((current) => ({
+      ...current,
+      images: [...current.images, image],
+    }));
     setSelectedImageId(image.id);
   };
 
   const removeSelectedImage = async () => {
     if (!selectedImage) return;
     const image = selectedImage;
+
     setCrossword((current) => ({
       ...current,
       images: current.images.filter((item) => item.id !== image.id),
     }));
     setSelectedImageId(null);
     await deleteImageAsset(image.assetId);
+  };
+
+  const selectIssue = (row: number, col: number) => {
+    const image = imageAtCell(crossword.images, row, col);
+    if (image) {
+      setSelectedImageId(image.id);
+      setSelected(null);
+      return;
+    }
+
+    setSelectedImageId(null);
+    setSelected({ row, col });
   };
 
   const reset = () => {
@@ -225,53 +321,155 @@ export default function App() {
       <header className="app-header">
         <div>
           <p className="eyebrow">Crossword Maker</p>
-          <input className="title-input" value={crossword.title} aria-label="Korsordets titel"
-            onChange={(event) => setCrossword((current) => ({ ...current, title: event.target.value }))} />
-          <p className="subtitle">Editor för svenska korsord med ledtrådar och bilder i rutnätet.</p>
+          <input
+            className="title-input"
+            value={crossword.title}
+            aria-label="Korsordets titel"
+            onChange={(event) =>
+              setCrossword((current) => ({
+                ...current,
+                title: event.target.value,
+              }))
+            }
+          />
+          <p className="subtitle">
+            Editor för svenska korsord med strukturanalys, ledtrådar och bilder.
+          </p>
         </div>
 
         <div className="header-actions">
-          <button type="button" className="secondary" onClick={reset}>Nytt</button>
-          <button type="button" className="secondary" onClick={() => fileInputRef.current?.click()}>Ladda JSON</button>
-          <button type="button" className="secondary" onClick={() => {
-            if (!selected) { window.alert("Välj först en ruta i korsordet."); return; }
-            setImageUploadMode("add");
-            imageInputRef.current?.click();
-          }}>+ Bild</button>
-          <button type="button" onClick={downloadJson}>Spara JSON</button>
-          <input ref={fileInputRef} className="sr-only" type="file" accept="application/json,.json"
+          <button type="button" className="secondary" onClick={reset}>
+            Nytt
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Ladda JSON
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              if (!selected) {
+                window.alert("Välj först en ruta i korsordet.");
+                return;
+              }
+              setImageUploadMode("add");
+              imageInputRef.current?.click();
+            }}
+          >
+            + Bild
+          </button>
+          <button type="button" onClick={downloadJson}>
+            Spara JSON
+          </button>
+
+          <input
+            ref={fileInputRef}
+            className="sr-only"
+            type="file"
+            accept="application/json,.json"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) void loadJson(file);
               event.currentTarget.value = "";
-            }} />
-          <input ref={imageInputRef} className="sr-only" type="file" accept="image/*"
+            }}
+          />
+          <input
+            ref={imageInputRef}
+            className="sr-only"
+            type="file"
+            accept="image/*"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) void handleImageFile(file);
               event.currentTarget.value = "";
-            }} />
+            }}
+          />
         </div>
       </header>
 
       <section className="workspace">
         <div className="board-panel">
           <div className="board-toolbar">
-            <span>{crossword.width} × {crossword.height}</span>
-            <span>Välj ruta och klicka + Bild för att placera en bild</span>
+            <span>
+              {crossword.width} × {crossword.height}
+            </span>
+            <div className="analysis-status" aria-label="Korsordsstatus">
+              <span className="status-ok">{analysis.answers.length} svar</span>
+              {errorCount > 0 && (
+                <span className="status-error">{errorCount} fel</span>
+              )}
+              {warningCount > 0 && (
+                <span className="status-warning">{warningCount} varningar</span>
+              )}
+              {analysis.issues.length === 0 && (
+                <span className="status-ok">✓ Inga problem</span>
+              )}
+            </div>
           </div>
 
           <CrosswordGrid
             crossword={crossword}
             selected={selectedImage ? null : selected}
             selectedImageId={selectedImageId}
-            onSelect={(row, col) => { setSelected({ row, col }); setSelectedImageId(null); }}
-            onSelectImage={(imageId) => { setSelectedImageId(imageId); setSelected(null); }}
+            highlightedCells={highlightedCells}
+            problemCells={problemCells}
+            onSelect={(row, col) => {
+              setSelected({ row, col });
+              setSelectedImageId(null);
+            }}
+            onSelectImage={(imageId) => {
+              setSelectedImageId(imageId);
+              setSelected(null);
+            }}
             onChangeCell={(row, col, cell) =>
-              updateCell(row, col, cell.type === "letter" ? setLetter(cell, cell.value) : cell)
+              updateCell(
+                row,
+                col,
+                cell.type === "letter" ? setLetter(cell, cell.value) : cell,
+              )
             }
-            onCycleType={(row, col) => updateCell(row, col, cycleCellType(crossword.cells[row][col]))}
+            onCycleType={(row, col) =>
+              updateCell(row, col, cycleCellType(crossword.cells[row][col]))
+            }
           />
+
+          <section className="problems-panel">
+            <div className="problems-heading">
+              <h2>Validering</h2>
+              <span>
+                {analysis.issues.length === 0
+                  ? "Korsordsstrukturen ser bra ut."
+                  : analysis.issues.length + " problem att kontrollera"}
+              </span>
+            </div>
+
+            {analysis.issues.length > 0 && (
+              <div className="problem-list">
+                {analysis.issues.map((issue) => (
+                  <button
+                    type="button"
+                    className={"problem-item problem-item--" + issue.severity}
+                    key={issue.id}
+                    onClick={() => selectIssue(issue.cell.row, issue.cell.col)}
+                  >
+                    <span className="problem-symbol">
+                      {issue.severity === "error" ? "!" : "⚠"}
+                    </span>
+                    <span>
+                      <strong>
+                        Rad {issue.cell.row + 1}, kolumn {issue.cell.col + 1}
+                      </strong>
+                      <small>{issue.message}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
 
         <aside className="inspector">
@@ -281,42 +479,112 @@ export default function App() {
               <p className="cell-position">{selectedImage.fileName}</p>
 
               <div className="image-size-grid">
-                <label className="field"><span>Rad</span><input type="number" min={1} max={crossword.height}
-                  value={selectedImage.row + 1}
-                  onChange={(event) => updateSelectedImage({ row: Number(event.target.value) - 1 })} /></label>
-                <label className="field"><span>Kolumn</span><input type="number" min={1} max={crossword.width}
-                  value={selectedImage.col + 1}
-                  onChange={(event) => updateSelectedImage({ col: Number(event.target.value) - 1 })} /></label>
-                <label className="field"><span>Höjd i rutor</span><input type="number" min={1}
-                  value={selectedImage.rowSpan}
-                  onChange={(event) => updateSelectedImage({ rowSpan: Number(event.target.value) })} /></label>
-                <label className="field"><span>Bredd i rutor</span><input type="number" min={1}
-                  value={selectedImage.colSpan}
-                  onChange={(event) => updateSelectedImage({ colSpan: Number(event.target.value) })} /></label>
+                <label className="field">
+                  <span>Rad</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={crossword.height}
+                    value={selectedImage.row + 1}
+                    onChange={(event) =>
+                      updateSelectedImage({
+                        row: Number(event.target.value) - 1,
+                      })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Kolumn</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={crossword.width}
+                    value={selectedImage.col + 1}
+                    onChange={(event) =>
+                      updateSelectedImage({
+                        col: Number(event.target.value) - 1,
+                      })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Höjd i rutor</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={selectedImage.rowSpan}
+                    onChange={(event) =>
+                      updateSelectedImage({
+                        rowSpan: Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Bredd i rutor</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={selectedImage.colSpan}
+                    onChange={(event) =>
+                      updateSelectedImage({
+                        colSpan: Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
               </div>
 
-              <label className="field"><span>Anpassning</span>
-                <select value={selectedImage.fit}
-                  onChange={(event) => updateSelectedImage({ fit: event.target.value as ImageFit })}>
+              <label className="field">
+                <span>Anpassning</span>
+                <select
+                  value={selectedImage.fit}
+                  onChange={(event) =>
+                    updateSelectedImage({
+                      fit: event.target.value as ImageFit,
+                    })
+                  }
+                >
                   <option value="cover">Fyll området (beskär)</option>
                   <option value="contain">Visa hela bilden</option>
                 </select>
               </label>
 
-              <label className="field"><span>Bildbeskrivning</span>
-                <input value={selectedImage.alt} placeholder="T.ex. Ett gammalt lok"
-                  onChange={(event) => updateSelectedImage({ alt: event.target.value })} />
+              <label className="field">
+                <span>Bildbeskrivning</span>
+                <input
+                  value={selectedImage.alt}
+                  placeholder="T.ex. Ett gammalt lok"
+                  onChange={(event) =>
+                    updateSelectedImage({ alt: event.target.value })
+                  }
+                />
               </label>
 
               <div className="image-actions">
-                <button type="button" className="secondary" onClick={() => {
-                  setImageUploadMode("replace");
-                  imageInputRef.current?.click();
-                }}>Byt bild</button>
-                <button type="button" className="danger" onClick={() => void removeSelectedImage()}>Ta bort bild</button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setImageUploadMode("replace");
+                    imageInputRef.current?.click();
+                  }}
+                >
+                  Byt bild
+                </button>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => void removeSelectedImage()}
+                >
+                  Ta bort bild
+                </button>
               </div>
 
-              <p className="hint">Bildfilen lagras lokalt i webbläsarens IndexedDB. JSON-filen innehåller bara bildreferensen.</p>
+              <p className="hint">
+                Bilder blockerar svar i ordanalysen. En ledtråd kan alltså inte
+                löpa genom ett bildområde.
+              </p>
             </>
           ) : !selected || !selectedCell ? (
             <>
@@ -326,57 +594,201 @@ export default function App() {
           ) : (
             <>
               <h2>Ruta</h2>
-              <p className="cell-position">Rad {selected.row + 1}, kolumn {selected.col + 1}</p>
+              <p className="cell-position">
+                Rad {selected.row + 1}, kolumn {selected.col + 1}
+              </p>
 
               <div className="segmented" aria-label="Ruttyp">
                 {(["letter", "black", "clue"] as const).map((type) => (
-                  <button type="button" key={type} className={selectedCell.type === type ? "active" : ""}
+                  <button
+                    type="button"
+                    key={type}
+                    className={selectedCell.type === type ? "active" : ""}
                     onClick={() => {
-                      if (type === "letter") updateSelectedCell(() => ({ type: "letter", value: "" }));
-                      else if (type === "black") updateSelectedCell(() => ({ type: "black" }));
-                      else updateSelectedCell(() => ({ type: "clue", clues: [{ id: crypto.randomUUID(), text: "", direction: "right" }] }));
-                    }}>
-                    {type === "letter" ? "Bokstav" : type === "black" ? "Svart" : "Ledtråd"}
+                      if (type === "letter") {
+                        updateSelectedCell(() => ({
+                          type: "letter",
+                          value: "",
+                        }));
+                      } else if (type === "black") {
+                        updateSelectedCell(() => ({ type: "black" }));
+                      } else {
+                        updateSelectedCell(() => ({
+                          type: "clue",
+                          clues: [
+                            {
+                              id: crypto.randomUUID(),
+                              text: "",
+                              direction: "right",
+                            },
+                          ],
+                        }));
+                      }
+                    }}
+                  >
+                    {type === "letter"
+                      ? "Bokstav"
+                      : type === "black"
+                        ? "Svart"
+                        : "Ledtråd"}
                   </button>
                 ))}
               </div>
 
               {selectedCell.type === "letter" && (
-                <label className="field"><span>Bokstav</span>
-                  <input maxLength={1} value={selectedCell.value}
-                    onChange={(event) => updateSelectedCell((cell) => setLetter(cell, event.target.value))} />
-                  <small>Stöd för A–Z samt Å, Ä och Ö.</small>
-                </label>
+                <>
+                  <label className="field">
+                    <span>Bokstav</span>
+                    <input
+                      maxLength={1}
+                      value={selectedCell.value}
+                      onChange={(event) =>
+                        updateSelectedCell((cell) =>
+                          setLetter(cell, event.target.value),
+                        )
+                      }
+                    />
+                    <small>Stöd för A–Z samt Å, Ä och Ö.</small>
+                  </label>
+
+                  <section className="answer-membership">
+                    <h3>Tillhör svar</h3>
+                    {selectedAnswers.length === 0 ? (
+                      <p className="hint">
+                        Rutan ingår ännu inte i något svar från en ledtråd.
+                      </p>
+                    ) : (
+                      selectedAnswers.map((answer) => (
+                        <div className="answer-card" key={answer.id}>
+                          <strong>{directionLabel(answer.direction)}</strong>
+                          <span>{answer.clueText || "Utan ledtrådstext"}</span>
+                          <small>
+                            {answer.cells.length} bokstäver ·{" "}
+                            <code>{answerPattern(answer)}</code>
+                          </small>
+                        </div>
+                      ))
+                    )}
+                  </section>
+                </>
               )}
 
-              {selectedCell.type === "black" && <p className="hint">Svarta rutor blockerar ord och används för att forma korsordet.</p>}
+              {selectedCell.type === "black" && (
+                <p className="hint">
+                  Svarta rutor blockerar ord och används för att forma
+                  korsordet.
+                </p>
+              )}
 
               {selectedCell.type === "clue" && (
                 <div className="clue-editor">
-                  {selectedCell.clues.map((clue, index) => (
-                    <div className="clue-block" key={clue.id}>
-                      <div className="clue-block-header"><strong>Ledtråd {index + 1}</strong>
-                        {selectedCell.clues.length > 1 && (
-                          <button type="button" className="text-button"
-                            onClick={() => updateSelectedCell((cell) => cell.type === "clue" ? removeClue(cell, clue.id) : cell)}>Ta bort</button>
+                  {selectedCell.clues.map((clue, index) => {
+                    const answer = analysis.answersByClueId.get(clue.id);
+                    const clueIssues = analysis.issues.filter(
+                      (issue) => issue.clueId === clue.id,
+                    );
+
+                    return (
+                      <div className="clue-block" key={clue.id}>
+                        <div className="clue-block-header">
+                          <strong>Ledtråd {index + 1}</strong>
+                          {selectedCell.clues.length > 1 && (
+                            <button
+                              type="button"
+                              className="text-button"
+                              onClick={() =>
+                                updateSelectedCell((cell) =>
+                                  cell.type === "clue"
+                                    ? removeClue(cell, clue.id)
+                                    : cell,
+                                )
+                              }
+                            >
+                              Ta bort
+                            </button>
+                          )}
+                        </div>
+
+                        <label className="field">
+                          <span>Text</span>
+                          <textarea
+                            rows={3}
+                            value={clue.text}
+                            placeholder="Skriv ledtråden…"
+                            onChange={(event) =>
+                              updateSelectedCell((cell) =>
+                                cell.type === "clue"
+                                  ? updateClue(cell, clue.id, {
+                                      text: event.target.value,
+                                    })
+                                  : cell,
+                              )
+                            }
+                          />
+                        </label>
+
+                        <label className="field">
+                          <span>Pil</span>
+                          <select
+                            value={clue.direction}
+                            onChange={(event) =>
+                              updateSelectedCell((cell) =>
+                                cell.type === "clue"
+                                  ? updateClue(cell, clue.id, {
+                                      direction: event.target
+                                        .value as Direction,
+                                    })
+                                  : cell,
+                              )
+                            }
+                          >
+                            <option value="right">→ Höger</option>
+                            <option value="down">↓ Nedåt</option>
+                          </select>
+                        </label>
+
+                        {answer && (
+                          <div className="answer-summary">
+                            <span>
+                              <strong>Svar:</strong> {answer.cells.length}{" "}
+                              {answer.cells.length === 1
+                                ? "bokstav"
+                                : "bokstäver"}
+                            </span>
+                            <code>
+                              {answer.cells.length > 0
+                                ? answerPattern(answer)
+                                : "—"}
+                            </code>
+                          </div>
                         )}
+
+                        {clueIssues.map((issue) => (
+                          <p
+                            className={
+                              "inline-issue inline-issue--" + issue.severity
+                            }
+                            key={issue.id}
+                          >
+                            {issue.message}
+                          </p>
+                        ))}
                       </div>
-                      <label className="field"><span>Text</span>
-                        <textarea rows={3} value={clue.text} placeholder="Skriv ledtråden…"
-                          onChange={(event) => updateSelectedCell((cell) => cell.type === "clue" ? updateClue(cell, clue.id, { text: event.target.value }) : cell)} />
-                      </label>
-                      <label className="field"><span>Pil</span>
-                        <select value={clue.direction}
-                          onChange={(event) => updateSelectedCell((cell) => cell.type === "clue" ? updateClue(cell, clue.id, { direction: event.target.value as Direction }) : cell)}>
-                          <option value="right">→ Höger</option>
-                          <option value="down">↓ Nedåt</option>
-                        </select>
-                      </label>
-                    </div>
-                  ))}
+                    );
+                  })}
+
                   {selectedCell.clues.length < 2 && (
-                    <button type="button" className="secondary full-width"
-                      onClick={() => updateSelectedCell((cell) => cell.type === "clue" ? addClue(cell) : cell)}>+ Lägg till andra ledtråden</button>
+                    <button
+                      type="button"
+                      className="secondary full-width"
+                      onClick={() =>
+                        updateSelectedCell((cell) =>
+                          cell.type === "clue" ? addClue(cell) : cell,
+                        )
+                      }
+                    >
+                      + Lägg till andra ledtråden
+                    </button>
                   )}
                 </div>
               )}
@@ -385,7 +797,10 @@ export default function App() {
         </aside>
       </section>
 
-      <footer>Projektet sparas automatiskt i webbläsaren. Bilder lagras lokalt i IndexedDB; exportera JSON för projektets struktur och metadata.</footer>
+      <footer>
+        Svar och validering räknas fram från rutnätet och sparas inte dubbelt i
+        projektfilen.
+      </footer>
     </main>
   );
 }

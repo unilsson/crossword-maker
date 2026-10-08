@@ -54,3 +54,17 @@ Sprint 1 used JSON format version 1. Sprint 1.1 introduces version 2 with an `im
 Sprint 1.1 does not attempt word extraction, dictionary lookup, automatic filling, clue generation, print/PDF output, image cropping controls, image-led clue arrows, portable image bundles, or collaboration.
 
 Those features build on top of the stable grid and image models.
+
+## Sprint 2: derived answer structure
+
+Sprint 2 introduces an analysis layer without changing the persisted project format.
+
+An `Answer` is derived from one clue. Its identity is the clue ID, and it contains the clue-cell position, direction, ordered letter-cell positions and current value. Answers are recomputed whenever the crossword changes.
+
+Answer traversal starts one cell away from the clue in its arrow direction and continues only through ordinary letter cells. Grid edges, black cells, clue cells and image-covered cells terminate the answer.
+
+A reverse index maps every answer cell back to its answer or answers. This enables selecting a letter cell and seeing the horizontal and/or vertical answers that cross there.
+
+Validation is also derived. Each issue has a severity, message and grid position, plus a clue ID when the issue belongs to a specific clue. The UI uses these issues both for the validation list and for visual markers in the grid.
+
+Because answers and issues are derived rather than persisted, editing a cell, clue direction or image placement can never leave stored answer metadata out of sync.
