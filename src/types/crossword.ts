@@ -7,16 +7,20 @@ export interface Clue {
   direction: Direction;
 }
 
-export type LetterCell = {
+export interface CellAppearance {
+  fill?: string;
+}
+
+export type LetterCell = CellAppearance & {
   type: "letter";
   value: string;
 };
 
-export type BlackCell = {
+export type BlackCell = CellAppearance & {
   type: "black";
 };
 
-export type ClueCell = {
+export type ClueCell = CellAppearance & {
   type: "clue";
   clues: Clue[];
 };
