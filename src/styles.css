@@ -779,3 +779,23 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+
+.board-toolbar-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.toolbar-toggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toolbar-toggle input {
+  margin: 0;
+}
