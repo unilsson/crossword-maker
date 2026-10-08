@@ -8,7 +8,11 @@ import type {
 
 export const DEFAULT_SIZE = 15;
 
-export const createLetterCell = (): Cell => ({ type: "letter", value: "" });
+export const createLetterCell = (fill?: string): Cell => ({
+  type: "letter",
+  value: "",
+  ...(fill ? { fill } : {}),
+});
 
 export const createEmptyCrossword = (
   width = DEFAULT_SIZE,
@@ -26,16 +30,19 @@ export const createEmptyCrossword = (
 });
 
 export const cycleCellType = (cell: Cell): Cell => {
-  if (cell.type === "letter") return { type: "black" };
+  const appearance = cell.fill ? { fill: cell.fill } : {};
+
+  if (cell.type === "letter") return { type: "black", ...appearance };
 
   if (cell.type === "black") {
     return {
       type: "clue",
       clues: [{ id: crypto.randomUUID(), text: "", direction: "right" }],
+      ...appearance,
     };
   }
 
-  return createLetterCell();
+  return createLetterCell(cell.fill);
 };
 
 export const setLetter = (cell: Cell, value: string): Cell => {
@@ -110,6 +117,12 @@ export const imageAtCell = (
 const isCell = (value: unknown): value is Cell => {
   if (!value || typeof value !== "object") return false;
   const cell = value as Record<string, unknown>;
+
+  const hasValidFill =
+    cell.fill === undefined ||
+    (typeof cell.fill === "string" && /^#[0-9a-fA-F]{6}$/.test(cell.fill));
+
+  if (!hasValidFill) return false;
 
   if (cell.type === "letter") return typeof cell.value === "string";
   if (cell.type === "black") return true;
