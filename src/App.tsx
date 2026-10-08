@@ -33,6 +33,10 @@ import type {
   CrosswordImage,
   Direction,
   ImageFit,
+  ImageArrow,
+  ImageArrowDirection,
+  ImageArrowEdge,
+  WordStartDirection,
 } from "./types/crossword";
 import type { WordLexicon, WordListDataset } from "./types/wordlist";
 
@@ -47,6 +51,23 @@ const imagesOverlap = (a: CrosswordImage, b: CrosswordImage) =>
   a.row + a.rowSpan > b.row &&
   a.col < b.col + b.colSpan &&
   a.col + a.colSpan > b.col;
+
+const toggleWordStart = (
+  cell: Cell,
+  direction: WordStartDirection,
+): Cell => {
+  if (cell.type !== "letter") return cell;
+
+  const current = new Set(cell.wordStarts ?? []);
+  if (current.has(direction)) current.delete(direction);
+  else current.add(direction);
+
+  const wordStarts = Array.from(current);
+  return {
+    ...cell,
+    wordStarts: wordStarts.length > 0 ? wordStarts : undefined,
+  };
+};
 
 const directionLabel = (direction: Direction) => {
   if (direction === "right") return "→ Höger";
@@ -241,6 +262,44 @@ export default function App() {
     }));
   };
 
+  const addImageArrow = () => {
+    if (!selectedImage) return;
+
+    const arrow: ImageArrow = {
+      id: crypto.randomUUID(),
+      edge: "bottom",
+      offset: 0,
+      direction: "right",
+      distance: 1,
+    };
+
+    updateSelectedImage({
+      arrows: [...(selectedImage.arrows ?? []), arrow],
+    });
+  };
+
+  const updateImageArrow = (
+    arrowId: string,
+    patch: Partial<Pick<ImageArrow, "edge" | "offset" | "direction" | "distance">>,
+  ) => {
+    if (!selectedImage) return;
+
+    updateSelectedImage({
+      arrows: (selectedImage.arrows ?? []).map((arrow) =>
+        arrow.id === arrowId ? { ...arrow, ...patch } : arrow,
+      ),
+    });
+  };
+
+  const removeImageArrow = (arrowId: string) => {
+    if (!selectedImage) return;
+    updateSelectedImage({
+      arrows: (selectedImage.arrows ?? []).filter(
+        (arrow) => arrow.id !== arrowId,
+      ),
+    });
+  };
+
   const installWordList = async () => {
     setWordListState("installing");
     setWordListError("");
@@ -404,6 +463,7 @@ export default function App() {
         colSpan: 3,
         fit: "cover",
         alt: "",
+        arrows: [],
       },
       crossword.width,
       crossword.height,
@@ -714,6 +774,128 @@ export default function App() {
                 />
               </label>
 
+              <section className="image-arrow-editor">
+                <div className="image-arrow-heading">
+                  <div>
+                    <strong>Pilar från bilden</strong>
+                    <p className="hint">
+                      Lägg ut startpilar från bildens under- eller högerkant.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={addImageArrow}
+                  >
+                    + Pil
+                  </button>
+                </div>
+
+                {(selectedImage.arrows ?? []).length === 0 ? (
+                  <p className="hint">
+                    Inga bildpilar ännu. De påverkar inte vanlig
+                    ledtrådsanalys.
+                  </p>
+                ) : (
+                  <div className="image-arrow-list">
+                    {(selectedImage.arrows ?? []).map((arrow, index) => {
+                      const maxOffset =
+                        arrow.edge === "bottom"
+                          ? selectedImage.colSpan
+                          : selectedImage.rowSpan;
+
+                      return (
+                        <div className="image-arrow-item" key={arrow.id}>
+                          <div className="image-arrow-item-header">
+                            <strong>Pil {index + 1}</strong>
+                            <button
+                              type="button"
+                              className="text-button"
+                              onClick={() => removeImageArrow(arrow.id)}
+                            >
+                              Ta bort
+                            </button>
+                          </div>
+
+                          <div className="image-arrow-grid">
+                            <label className="field">
+                              <span>Kant</span>
+                              <select
+                                value={arrow.edge}
+                                onChange={(event) =>
+                                  updateImageArrow(arrow.id, {
+                                    edge: event.target.value as ImageArrowEdge,
+                                    offset: 0,
+                                  })
+                                }
+                              >
+                                <option value="bottom">Underkant</option>
+                                <option value="right">Högerkant</option>
+                              </select>
+                            </label>
+
+                            <label className="field">
+                              <span>Position</span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={maxOffset}
+                                value={arrow.offset + 1}
+                                onChange={(event) =>
+                                  updateImageArrow(arrow.id, {
+                                    offset: Math.max(
+                                      0,
+                                      Number(event.target.value) - 1,
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+
+                            <label className="field">
+                              <span>Pekar</span>
+                              <select
+                                value={arrow.direction}
+                                onChange={(event) =>
+                                  updateImageArrow(arrow.id, {
+                                    direction: event.target
+                                      .value as ImageArrowDirection,
+                                  })
+                                }
+                              >
+                                <option value="right">→ Höger</option>
+                                <option value="down">↓ Nedåt</option>
+                              </select>
+                            </label>
+
+                            <label className="field">
+                              <span>Utskjut</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={4}
+                                value={arrow.distance}
+                                onChange={(event) =>
+                                  updateImageArrow(arrow.id, {
+                                    distance: Math.max(
+                                      0,
+                                      Math.min(
+                                        4,
+                                        Number(event.target.value),
+                                      ),
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
               <div className="image-actions">
                 <button
                   type="button"
@@ -866,6 +1048,40 @@ export default function App() {
                     />
                     <small>Stöd för A–Z samt Å, Ä och Ö.</small>
                   </label>
+
+                  <section className="word-start-section">
+                    <div>
+                      <strong>Ordgräns i bildfras</strong>
+                      <p className="hint">
+                        Pilarna betyder bara nytt ord och stoppar inte frasen.
+                      </p>
+                    </div>
+                    <div className="word-start-buttons">
+                      {(["right", "down"] as WordStartDirection[]).map(
+                        (direction) => {
+                          const active = (selectedCell.wordStarts ?? []).includes(
+                            direction,
+                          );
+                          return (
+                            <button
+                              type="button"
+                              key={direction}
+                              className={active ? "active" : "secondary"}
+                              onClick={() =>
+                                updateSelectedCell((cell) =>
+                                  toggleWordStart(cell, direction),
+                                )
+                              }
+                            >
+                              {direction === "right"
+                                ? "→ Nytt ord åt höger"
+                                : "↓ Nytt ord nedåt"}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </section>
 
                   <section className="answer-membership">
                     <h3>Tillhör svar</h3>
