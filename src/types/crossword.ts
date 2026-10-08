@@ -1,5 +1,8 @@
 export type Direction = "right" | "down" | "right-down" | "down-right" | "right-down-plus-one" | "down-right-plus-one";
 export type ImageFit = "cover" | "contain";
+export type WordStartDirection = "right" | "down";
+export type ImageArrowEdge = "bottom" | "right";
+export type ImageArrowDirection = "right" | "down";
 
 export interface Clue {
   id: string;
@@ -14,6 +17,7 @@ export interface CellAppearance {
 export type LetterCell = CellAppearance & {
   type: "letter";
   value: string;
+  wordStarts?: WordStartDirection[];
 };
 
 export type BlackCell = CellAppearance & {
@@ -27,6 +31,14 @@ export type ClueCell = CellAppearance & {
 
 export type Cell = LetterCell | BlackCell | ClueCell;
 
+export interface ImageArrow {
+  id: string;
+  edge: ImageArrowEdge;
+  offset: number;
+  direction: ImageArrowDirection;
+  distance: number;
+}
+
 export interface CrosswordImage {
   id: string;
   assetId: string;
@@ -37,6 +49,7 @@ export interface CrosswordImage {
   colSpan: number;
   fit: ImageFit;
   alt: string;
+  arrows?: ImageArrow[];
 }
 
 export interface Crossword {
