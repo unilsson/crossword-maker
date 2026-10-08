@@ -872,3 +872,67 @@ footer {
 .toolbar-toggle input {
   margin: 0;
 }
+
+
+.cell-color-section {
+  margin: 4px 0 18px;
+  padding: 12px;
+  border: 1px solid #ded6ca;
+  border-radius: 10px;
+  background: #f8f4ed;
+}
+
+.cell-color-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cell-color-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.cell-color-heading small {
+  color: #665f55;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.cell-color-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cell-color-picker {
+  width: 44px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid #bdb5aa;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.cell-color-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.inspector .cell-color-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #8b8378;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.65);
+}
+
+.crossword-cell.is-answer-highlighted {
+  outline: 3px solid rgba(199, 157, 38, 0.5);
+  outline-offset: -3px;
+}
