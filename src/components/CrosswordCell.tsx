@@ -17,7 +17,7 @@ interface CrosswordCellProps {
   onLetterChange: (value: string) => void;
 }
 
-const Arrow = ({ direction }: { direction: "right" | "down" | "right-down" | "down-right" | "down-right-plus-one" }) => (
+const Arrow = ({ direction }: { direction: "right" | "down" | "right-down" | "down-right" | "right-down-plus-one" | "down-right-plus-one" }) => (
   <span
     className={"clue-edge-arrow clue-edge-arrow--" + direction}
     aria-hidden="true"
@@ -91,14 +91,15 @@ export default function CrosswordCell({
   }
 
   const directionOrder: Record<
-    "right" | "right-down" | "down-right" | "down-right-plus-one" | "down",
+    "right" | "right-down" | "right-down-plus-one" | "down-right" | "down-right-plus-one" | "down",
     number
   > = {
     right: 0,
     "right-down": 1,
-    "down-right": 2,
-    "down-right-plus-one": 3,
-    down: 4,
+    "right-down-plus-one": 2,
+    "down-right": 3,
+    "down-right-plus-one": 4,
+    down: 5,
   };
 
   const orderedClues = [...cell.clues]
