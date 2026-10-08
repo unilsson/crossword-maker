@@ -48,8 +48,14 @@ const imagesOverlap = (a: CrosswordImage, b: CrosswordImage) =>
   a.col < b.col + b.colSpan &&
   a.col + a.colSpan > b.col;
 
-const directionLabel = (direction: Direction) =>
-  direction === "right" ? "→ Höger" : "↓ Nedåt";
+const directionLabel = (direction: Direction) => {
+  if (direction === "right") return "→ Höger";
+  if (direction === "right-down") return "↳ Höger–nedåt";
+  if (direction === "right-down-plus-one") return "↳ Höger–nedåt +1";
+  if (direction === "down-right") return "↳ Nedåt–höger";
+  if (direction === "down-right-plus-one") return "↳ Nedåt–höger +1";
+  return "↓ Nedåt";
+};
 
 export default function App() {
   const [crossword, setCrossword] = useState<Crossword>(() => {
@@ -872,6 +878,10 @@ export default function App() {
                               )
                             }
                           />
+                          <small>
+                            Automatisk svensk avstavning används. Skriv | för
+                            en egen avstavningspunkt, t.ex. männi|skans.
+                          </small>
                         </label>
 
                         <label className="field">
@@ -890,6 +900,14 @@ export default function App() {
                             }
                           >
                             <option value="right">→ Höger</option>
+                            <option value="right-down">↳ Höger–nedåt</option>
+                            <option value="right-down-plus-one">
+                              ↳ Höger–nedåt +1
+                            </option>
+                            <option value="down-right">↳ Nedåt–höger</option>
+                            <option value="down-right-plus-one">
+                              ↳ Nedåt–höger +1
+                            </option>
                             <option value="down">↓ Nedåt</option>
                           </select>
                         </label>

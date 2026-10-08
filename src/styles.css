@@ -185,7 +185,7 @@ button.secondary {
   overflow: visible;
   background: #ebe4d8;
   font-size: clamp(5px, 0.75vw, 10px);
-  text-align: left;
+  text-align: center;
   z-index: 1;
 }
 
@@ -210,74 +210,83 @@ button.secondary {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  text-overflow: clip;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphenate-character: "-";
+}
+
+.clue-preview > span.has-manual-hyphens {
+  hyphens: manual;
+  -webkit-hyphens: manual;
 }
 
 .clue-edge-arrow {
   position: absolute;
   z-index: 6;
   display: block;
+  overflow: visible;
+  color: #171717;
   pointer-events: none;
+}
+
+.clue-edge-arrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .clue-edge-arrow--right {
   top: 50%;
-  right: -8px;
-  width: 12px;
-  height: 10px;
+  right: -12px;
+  width: 16px;
+  height: 16px;
   transform: translateY(-50%);
-}
-
-.clue-edge-arrow--right::before {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 0;
-  width: 7px;
-  height: 2px;
-  background: #171717;
-}
-
-.clue-edge-arrow--right::after {
-  content: "";
-  position: absolute;
-  top: 1px;
-  right: 0;
-  width: 0;
-  height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-left: 5px solid #171717;
 }
 
 .clue-edge-arrow--down {
   left: 50%;
-  bottom: -8px;
-  width: 10px;
-  height: 12px;
+  bottom: -12px;
+  width: 16px;
+  height: 16px;
   transform: translateX(-50%);
 }
 
-.clue-edge-arrow--down::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 4px;
-  width: 2px;
-  height: 7px;
-  background: #171717;
+.clue-edge-arrow--right-down {
+  top: 50%;
+  right: -13px;
+  width: 18px;
+  height: 24px;
 }
 
-.clue-edge-arrow--down::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 1px;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid #171717;
+.clue-edge-arrow--down-right {
+  left: 50%;
+  bottom: -13px;
+  width: 24px;
+  height: 18px;
+}
+
+.clue-edge-arrow--right-down-plus-one,
+.clue-edge-arrow--down-right-plus-one {
+  left: 100%;
+  top: 100%;
+  transform: translate(-1px, -1px);
+}
+
+.clue-edge-arrow--right-down-plus-one {
+  width: 20px;
+  height: 30px;
+}
+
+.clue-edge-arrow--down-right-plus-one {
+  width: 30px;
+  height: 20px;
 }
 
 .inspector {
