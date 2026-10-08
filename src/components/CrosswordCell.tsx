@@ -146,8 +146,13 @@ export default function CrosswordCell({
             {(cell.wordStarts ?? []).map((direction) => (
               <WordStartMarker key={direction} direction={direction} />
             ))}
-            <input value={cell.value} maxLength={1} inputMode="text" aria-label="Bokstav"
-              onFocus={() => onSelect(false)} onChange={(event) => onLetterChange(event.target.value)} />
+            <input
+              value={cell.value}
+              maxLength={1}
+              inputMode="text"
+              aria-label="Bokstav"
+              onChange={(event) => onLetterChange(event.target.value)}
+            />
           </>
         )}
       </div>
