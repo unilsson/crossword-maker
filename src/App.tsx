@@ -92,6 +92,10 @@ export default function App() {
   });
 
   const [selected, setSelected] = useState<Selection>({ row: 0, col: 0 });
+  const [selectionAnchor, setSelectionAnchor] = useState<Selection>({
+    row: 0,
+    col: 0,
+  });
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [imageUploadMode, setImageUploadMode] = useState<ImageUploadMode>("add");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +148,44 @@ export default function App() {
     if (!selected) return null;
     return crossword.cells[selected.row]?.[selected.col] ?? null;
   }, [crossword, selected]);
+
+  const selectedRange = useMemo(() => {
+    if (!selected) return [] as { row: number; col: number }[];
+    if (!selectionAnchor) return [selected];
+
+    if (selectionAnchor.row === selected.row) {
+      const start = Math.min(selectionAnchor.col, selected.col);
+      const end = Math.max(selectionAnchor.col, selected.col);
+      return Array.from({ length: end - start + 1 }, (_, index) => ({
+        row: selected.row,
+        col: start + index,
+      }));
+    }
+
+    if (selectionAnchor.col === selected.col) {
+      const start = Math.min(selectionAnchor.row, selected.row);
+      const end = Math.max(selectionAnchor.row, selected.row);
+      return Array.from({ length: end - start + 1 }, (_, index) => ({
+        row: start + index,
+        col: selected.col,
+      }));
+    }
+
+    return [selected];
+  }, [selected, selectionAnchor]);
+
+  const selectedRangeKeys = useMemo(
+    () => new Set(selectedRange.map((cell) => answerCellKey(cell))),
+    [selectedRange],
+  );
+
+  const selectionHasFill = useMemo(
+    () =>
+      selectedRange.some(
+        ({ row, col }) => Boolean(crossword.cells[row]?.[col]?.fill),
+      ),
+    [crossword, selectedRange],
+  );
 
   const selectedImage = useMemo(
     () => crossword.images.find((image) => image.id === selectedImageId) ?? null,
@@ -238,6 +280,39 @@ export default function App() {
   const updateSelectedCell = (updater: (cell: Cell) => Cell) => {
     if (!selected || !selectedCell || selectedImage) return;
     updateCell(selected.row, selected.col, updater(selectedCell));
+  };
+
+  const selectCell = (row: number, col: number, extend = false) => {
+    const next = { row, col };
+
+    if (
+      extend &&
+      selectionAnchor &&
+      (selectionAnchor.row === row || selectionAnchor.col === col)
+    ) {
+      setSelected(next);
+    } else {
+      setSelected(next);
+      setSelectionAnchor(next);
+    }
+
+    setSelectedImageId(null);
+  };
+
+  const applyFillToSelection = (fill?: string) => {
+    if (selectedRange.length === 0 || selectedImage) return;
+    const keys = new Set(selectedRange.map((cell) => answerCellKey(cell)));
+
+    setCrossword((current) => ({
+      ...current,
+      cells: current.cells.map((row, rowIndex) =>
+        row.map((cell, colIndex) =>
+          keys.has(rowIndex + ":" + colIndex)
+            ? { ...cell, fill }
+            : cell,
+        ),
+      ),
+    }));
   };
 
   const updateSelectedImage = (patch: Partial<CrosswordImage>) => {
@@ -377,7 +452,9 @@ export default function App() {
       event.preventDefault();
       updateSelectedCell((cell) => setLetter(cell, event.key));
       const nextCol = Math.min(crossword.width - 1, selected.col + 1);
-      setSelected({ row: selected.row, col: nextCol });
+      const next = { row: selected.row, col: nextCol };
+      setSelected(next);
+      setSelectionAnchor(next);
       return;
     }
 
@@ -391,10 +468,12 @@ export default function App() {
     if (!move) return;
 
     event.preventDefault();
-    setSelected({
+    const next = {
       row: Math.max(0, Math.min(crossword.height - 1, selected.row + move[0])),
       col: Math.max(0, Math.min(crossword.width - 1, selected.col + move[1])),
-    });
+    };
+    setSelected(next);
+    setSelectionAnchor(next);
   };
 
   const downloadJson = () => {
@@ -423,6 +502,7 @@ export default function App() {
 
       setCrossword(migrated);
       setSelected({ row: 0, col: 0 });
+      setSelectionAnchor({ row: 0, col: 0 });
       setSelectedImageId(null);
     } catch {
       window.alert("Kunde inte läsa JSON-filen.");
@@ -499,17 +579,20 @@ export default function App() {
     if (image) {
       setSelectedImageId(image.id);
       setSelected(null);
+      setSelectionAnchor(null);
       return;
     }
 
     setSelectedImageId(null);
     setSelected({ row, col });
+    setSelectionAnchor({ row, col });
   };
 
   const reset = () => {
     if (!window.confirm("Skapa ett nytt tomt 15×15-korsord?")) return;
     setCrossword(createEmptyCrossword());
     setSelected({ row: 0, col: 0 });
+    setSelectionAnchor({ row: 0, col: 0 });
     setSelectedImageId(null);
   };
 
@@ -626,17 +709,18 @@ export default function App() {
           <CrosswordGrid
             crossword={crossword}
             selected={selectedImage ? null : selected}
+            selectedRangeCells={selectedImage ? new Set<string>() : selectedRangeKeys}
             selectedImageId={selectedImageId}
             highlightedCells={highlightedCells}
             problemCells={problemCells}
             uppercaseClues={Boolean(crossword.uppercaseClues)}
-            onSelect={(row, col) => {
-              setSelected({ row, col });
-              setSelectedImageId(null);
+            onSelect={(row, col, extend) => {
+              selectCell(row, col, extend);
             }}
             onSelectImage={(imageId) => {
               setSelectedImageId(imageId);
               setSelected(null);
+              setSelectionAnchor(null);
             }}
             onChangeCell={(row, col, cell) =>
               updateCell(
@@ -978,19 +1062,21 @@ export default function App() {
               <section className="cell-color-section">
                 <div className="cell-color-heading">
                   <div>
-                    <strong>Rutans färg</strong>
-                    <small>Valfri markering för just den här rutan.</small>
+                    <strong>
+                      {selectedRange.length > 1
+                        ? selectedRange.length + " rutors färg"
+                        : "Rutans färg"}
+                    </strong>
+                    <small>
+                      Shift-klicka en annan ruta i samma rad eller kolumn för
+                      att markera ett sammanhängande område.
+                    </small>
                   </div>
-                  {selectedCell.fill && (
+                  {selectionHasFill && (
                     <button
                       type="button"
                       className="text-button"
-                      onClick={() =>
-                        updateSelectedCell((cell) => ({
-                          ...cell,
-                          fill: undefined,
-                        }))
-                      }
+                      onClick={() => applyFillToSelection(undefined)}
                     >
                       Ingen färg
                     </button>
@@ -1001,13 +1087,10 @@ export default function App() {
                   <input
                     className="cell-color-picker"
                     type="color"
-                    aria-label="Rutans färg"
+                    aria-label="Markerade rutors färg"
                     value={selectedCell.fill ?? "#fff2a8"}
                     onChange={(event) =>
-                      updateSelectedCell((cell) => ({
-                        ...cell,
-                        fill: event.target.value,
-                      }))
+                      applyFillToSelection(event.target.value)
                     }
                   />
                   <div className="cell-color-presets" aria-label="Färgförslag">
@@ -1020,17 +1103,21 @@ export default function App() {
                           aria-label={"Välj färg " + color}
                           title={color}
                           style={{ backgroundColor: color }}
-                          onClick={() =>
-                            updateSelectedCell((cell) => ({
-                              ...cell,
-                              fill: color,
-                            }))
-                          }
+                          onClick={() => applyFillToSelection(color)}
                         />
                       ),
                     )}
                   </div>
                 </div>
+
+                {selectedRange.length > 1 && (
+                  <p className="range-selection-summary">
+                    {selectionAnchor?.row === selected?.row
+                      ? "Vågrät markering"
+                      : "Lodrät markering"}{" "}
+                    · {selectedRange.length} rutor
+                  </p>
+                )}
               </section>
 
               {selectedCell.type === "letter" && (
