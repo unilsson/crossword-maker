@@ -210,7 +210,13 @@ button.secondary {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  text-overflow: clip;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphenate-character: "-";
 }
 
 .clue-edge-arrow {
