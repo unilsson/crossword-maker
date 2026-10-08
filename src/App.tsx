@@ -759,14 +759,18 @@ export default function App() {
                     className={selectedCell.type === type ? "active" : ""}
                     onClick={() => {
                       if (type === "letter") {
-                        updateSelectedCell(() => ({
+                        updateSelectedCell((cell) => ({
                           type: "letter",
                           value: "",
+                          ...(cell.fill ? { fill: cell.fill } : {}),
                         }));
                       } else if (type === "black") {
-                        updateSelectedCell(() => ({ type: "black" }));
+                        updateSelectedCell((cell) => ({
+                          type: "black",
+                          ...(cell.fill ? { fill: cell.fill } : {}),
+                        }));
                       } else {
-                        updateSelectedCell(() => ({
+                        updateSelectedCell((cell) => ({
                           type: "clue",
                           clues: [
                             {
@@ -775,6 +779,7 @@ export default function App() {
                               direction: "right",
                             },
                           ],
+                          ...(cell.fill ? { fill: cell.fill } : {}),
                         }));
                       }
                     }}
@@ -787,6 +792,64 @@ export default function App() {
                   </button>
                 ))}
               </div>
+
+              <section className="cell-color-section">
+                <div className="cell-color-heading">
+                  <div>
+                    <strong>Rutans färg</strong>
+                    <small>Valfri markering för just den här rutan.</small>
+                  </div>
+                  {selectedCell.fill && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() =>
+                        updateSelectedCell((cell) => ({
+                          ...cell,
+                          fill: undefined,
+                        }))
+                      }
+                    >
+                      Ingen färg
+                    </button>
+                  )}
+                </div>
+
+                <div className="cell-color-controls">
+                  <input
+                    className="cell-color-picker"
+                    type="color"
+                    aria-label="Rutans färg"
+                    value={selectedCell.fill ?? "#fff2a8"}
+                    onChange={(event) =>
+                      updateSelectedCell((cell) => ({
+                        ...cell,
+                        fill: event.target.value,
+                      }))
+                    }
+                  />
+                  <div className="cell-color-presets" aria-label="Färgförslag">
+                    {["#fff2a8", "#dceeff", "#f8dfe8", "#e4f1df"].map(
+                      (color) => (
+                        <button
+                          type="button"
+                          className="cell-color-swatch"
+                          key={color}
+                          aria-label={"Välj färg " + color}
+                          title={color}
+                          style={{ backgroundColor: color }}
+                          onClick={() =>
+                            updateSelectedCell((cell) => ({
+                              ...cell,
+                              fill: color,
+                            }))
+                          }
+                        />
+                      ),
+                    )}
+                  </div>
+                </div>
+              </section>
 
               {selectedCell.type === "letter" && (
                 <>

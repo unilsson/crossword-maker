@@ -100,6 +100,7 @@ export default function CrosswordCell({
     top: (row / gridHeight) * 100 + "%",
     width: 100 / gridWidth + "%",
     height: 100 / gridHeight + "%",
+    ...(cell.fill ? { backgroundColor: cell.fill } : {}),
   };
 
   const onContextMenu = (event: MouseEvent<HTMLDivElement>) => {
