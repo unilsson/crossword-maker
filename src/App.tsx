@@ -51,6 +51,7 @@ const imagesOverlap = (a: CrosswordImage, b: CrosswordImage) =>
 const directionLabel = (direction: Direction) => {
   if (direction === "right") return "→ Höger";
   if (direction === "right-down") return "↳ Höger–nedåt";
+  if (direction === "down-right") return "↳ Nedåt–höger";
   return "↓ Nedåt";
 };
 
@@ -898,6 +899,7 @@ export default function App() {
                           >
                             <option value="right">→ Höger</option>
                             <option value="right-down">↳ Höger–nedåt</option>
+                            <option value="down-right">↳ Nedåt–höger</option>
                             <option value="down">↓ Nedåt</option>
                           </select>
                         </label>
