@@ -16,6 +16,7 @@ interface CrosswordCellProps {
   rangeSelected: boolean;
   highlighted: boolean;
   hasProblem: boolean;
+  locked: boolean;
   uppercaseClues: boolean;
   onSelect: (extend?: boolean) => void;
   onCycleType: () => void;
@@ -106,6 +107,7 @@ export default function CrosswordCell({
   rangeSelected,
   highlighted,
   hasProblem,
+  locked,
   uppercaseClues,
   onSelect,
   onCycleType,
@@ -117,6 +119,7 @@ export default function CrosswordCell({
     covered ? "is-covered" : "",
     highlighted ? "is-answer-highlighted" : "",
     hasProblem ? "has-problem" : "",
+    locked ? "is-locked" : "",
     rangeSelected ? "is-range-selected" : "",
     selected ? "is-selected" : "",
   ].filter(Boolean).join(" ");
