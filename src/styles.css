@@ -1076,3 +1076,123 @@ footer {
   font-size: 11px;
   font-weight: 800;
 }
+
+
+.crossword-cell.is-locked::before {
+  content: "🔒";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 6;
+  font-size: 9px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.answer-summary--with-lock {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.answer-summary--with-lock .text-button {
+  margin-left: auto;
+}
+
+.candidate-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.candidate-actions-row,
+.image-phrase-word-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inspector .compact-action {
+  padding: 6px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.image-phrase-summary {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #d6cec2;
+  border-radius: 9px;
+  background: #fffdf9;
+}
+
+.image-phrase-summary-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.image-phrase-summary-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.image-phrase-summary code,
+.image-phrase-word code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+}
+
+.image-phrase-summary > small {
+  display: block;
+  margin-top: 4px;
+  color: #665f55;
+}
+
+.image-phrase-word {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e5ddd1;
+}
+
+.image-phrase-word-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.phrase-candidate-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.inspector .phrase-candidate-list button {
+  padding: 5px 7px;
+  border: 1px solid #d6cec2;
+  border-radius: 7px;
+  background: #f8f4ed;
+  color: #171717;
+  font-size: 10px;
+}
+
+.inspector .phrase-candidate-list button:hover:not(:disabled) {
+  background: #eee6da;
+}
+
+.inspector .phrase-candidate-list button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 420px) {
+  .candidate-actions-row,
+  .image-phrase-word-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

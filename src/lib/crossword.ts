@@ -28,6 +28,7 @@ export const createEmptyCrossword = (
   ),
   images: [],
   uppercaseClues: false,
+  lockedAnswerIds: [],
 });
 
 export const cycleCellType = (cell: Cell): Cell => {
@@ -108,6 +109,7 @@ export const clampImageToGrid = (
       ),
     ),
     distance: Math.max(0, Math.min(4, arrow.distance)),
+    locked: Boolean(arrow.locked),
   }));
 
   return { ...image, row, col, rowSpan, colSpan, arrows };
@@ -182,7 +184,8 @@ const isImageArrow = (value: unknown): value is ImageArrow => {
     Number.isInteger(arrow.distance) &&
     typeof arrow.distance === "number" &&
     arrow.distance >= 0 &&
-    arrow.distance <= 4
+    arrow.distance <= 4 &&
+    (arrow.locked === undefined || typeof arrow.locked === "boolean")
   );
 };
 
@@ -241,7 +244,10 @@ export const isCrossword = (value: unknown): value is Crossword => {
     !Array.isArray(candidate.images) ||
     !candidate.images.every(isImage) ||
     (candidate.uppercaseClues !== undefined &&
-      typeof candidate.uppercaseClues !== "boolean")
+      typeof candidate.uppercaseClues !== "boolean") ||
+    (candidate.lockedAnswerIds !== undefined &&
+      (!Array.isArray(candidate.lockedAnswerIds) ||
+        !candidate.lockedAnswerIds.every((id) => typeof id === "string")))
   ) {
     return false;
   }
@@ -264,9 +270,13 @@ export const migrateCrossword = (value: unknown): Crossword | null => {
       ...value,
       images: value.images.map((image) => ({
         ...image,
-        arrows: image.arrows ?? [],
+        arrows: (image.arrows ?? []).map((arrow) => ({
+          ...arrow,
+          locked: Boolean(arrow.locked),
+        })),
       })),
       uppercaseClues: value.uppercaseClues ?? false,
+      lockedAnswerIds: value.lockedAnswerIds ?? [],
     };
   }
 
@@ -295,5 +305,6 @@ export const migrateCrossword = (value: unknown): Crossword | null => {
     cells: candidate.cells,
     images: [],
     uppercaseClues: false,
+    lockedAnswerIds: [],
   };
 };

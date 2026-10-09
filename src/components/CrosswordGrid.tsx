@@ -10,6 +10,7 @@ interface CrosswordGridProps {
   selectedImageId: string | null;
   highlightedCells: Set<string>;
   problemCells: Set<string>;
+  lockedCells: Set<string>;
   uppercaseClues: boolean;
   onSelect: (row: number, col: number, extend: boolean) => void;
   onSelectImage: (imageId: string) => void;
@@ -24,6 +25,7 @@ export default function CrosswordGrid({
   selectedImageId,
   highlightedCells,
   problemCells,
+  lockedCells,
   uppercaseClues,
   onSelect,
   onSelectImage,
@@ -51,6 +53,7 @@ export default function CrosswordGrid({
                 rangeSelected={selectedRangeCells.has(cellKey)}
                 highlighted={highlightedCells.has(cellKey)}
                 hasProblem={problemCells.has(cellKey)}
+                locked={lockedCells.has(cellKey)}
                 uppercaseClues={uppercaseClues}
                 onSelect={(extend) => {
                   if (!covered) onSelect(rowIndex, colIndex, Boolean(extend));
