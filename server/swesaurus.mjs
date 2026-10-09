@@ -10,6 +10,14 @@ const many = (value) => value === undefined || value === null ? [] :
 const normalize = (value) => String(value ?? "").normalize("NFC").trim().toLocaleUpperCase("sv-SE");
 const crosswordWord = (value) => /^[A-ZÅÄÖ]{2,50}$/.test(value);
 
+// The official 2017 Swesaurus LMF export has empty Lemma nodes. Words are
+// encoded in SALDO sense ids, e.g. "abakus..1" or "världsdel..1".
+const wordFromSaldoSenseId = (id) => {
+  if (!/\\.\\.[0-9]+$/.test(String(id ?? ""))) return null;
+  const word = normalize(String(id).replace(/\\.\\.[0-9]+$/, ""));
+  return crosswordWord(word) ? word : null;
+};
+
 /** Read either LMF feat att/val or newer attribute-based WN-LMF. */
 const feature = (node, key) => {
   if (!node || typeof node !== "object") return null;
@@ -38,6 +46,15 @@ export const extractSwesaurus = (xml) => {
   const groups = new Map();
   const senseToWord = new Map();
   const entryToWord = new Map();
+  // Genuine Swesaurus uses SenseRelation targets="sense-id" with
+  // <feat att="label" val="syn"/>. Other labels such as iu/ui/tp/pt
+  // are NOT synonym relationships, so never import them as suggestions.
+  const directedPairs = new Set();
+  const addRelation = (first, second) => {
+    if (!first || !second || first === second) return;
+    const sorted = [first, second].sort((a, b) => a.localeCompare(b, "sv-SE"));
+    directedPairs.add(sorted.join("\\t"));
+  };
   const add = (key, word) => {
     if (!key || !crosswordWord(word)) return;
     if (!groups.has(key)) groups.set(key, new Set());
@@ -50,16 +67,26 @@ export const extractSwesaurus = (xml) => {
       entries += 1;
       const lemma = entry.Lemma ?? entry.lemma;
       const written = feature(lemma, "writtenForm") ?? feature(entry, "writtenForm");
-      const word = normalize(written);
-      if (!crosswordWord(word)) continue;
+      const explicitWord = normalize(written);
       const entryId = feature(entry, "id");
-      if (entryId) entryToWord.set(entryId, word);
       for (const sense of many(entry.Sense)) {
         const senseId = feature(sense, "id");
+        const word = crosswordWord(explicitWord) ? explicitWord : wordFromSaldoSenseId(senseId);
+        if (!word) continue;
+        if (entryId) entryToWord.set(entryId, word);
         if (senseId) senseToWord.set(senseId, word);
         const synsetId = ["synset", "synsetId", "synsetID", "synsetRef", "synset_id"]
           .map(key => feature(sense, key)).find(Boolean);
         if (synsetId) add(synsetId, word);
+        for (const relation of many(sense.SenseRelation)) {
+          // Swesaurus has many relation types; only "syn" means synonyms.
+          if (feature(relation, "label") !== "syn") continue;
+          const targets = (feature(relation, "targets") ?? "").split(/\\s+/).filter(Boolean);
+          for (const target of targets) {
+            const other = wordFromSaldoSenseId(target);
+            addRelation(word, other);
+          }
+        }
       }
     }
   }
@@ -89,7 +116,7 @@ export const extractSwesaurus = (xml) => {
     }
   }
 
-  const pairs = new Set();
+  const pairs = new Set(directedPairs);
   let skippedLargeGroups = 0;
   for (const words of groups.values()) {
     if (words.size > 50) {
@@ -104,7 +131,7 @@ export const extractSwesaurus = (xml) => {
     }
   }
   if (entries === 0 || pairs.size === 0) {
-    throw new Error("Inga synonympar hittades. Swesaurus-formatet kan ha ändrats.");
+    throw new Error("Inga synonympar hittades i XML-filen. Importen kräver Swesaurus med SenseRelation label=syn.");
   }
   return { pairs: [...pairs].map(pair => pair.split("\t")), entries, groups: groups.size, skippedLargeGroups };
 };
