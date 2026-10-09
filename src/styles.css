@@ -1196,3 +1196,19 @@ footer {
     flex-direction: column;
   }
 }
+
+.project-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px;
+  margin-bottom: 20px;
+  background: #fffdf9;
+  border: 1px solid #cfc7ba;
+  border-radius: 12px;
+}
+.project-bar select { min-width: min(300px, 100%); max-width: 100%; padding: 9px; }
+.project-bar button { padding: 10px 12px; border-radius: 8px; background: #171717; color: white; cursor: pointer; }
+.project-bar button:disabled { opacity: .45; cursor: not-allowed; }
+.project-bar span { color: #665f55; font-size: 13px; }
