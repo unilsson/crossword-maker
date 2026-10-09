@@ -13,7 +13,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-In the editor, open **Ordlista → Synonymer och närbesläktade ord** and click **Installera Swesaurus**. The API downloads the source XML (~12 MB) from Språkbanken, parses LMF lexical entries and synset membership, and stores the result in the **same persistent SQLite volume as the crossword projects**.
+In the editor, open **Ordlista → Synonymer och närbesläktade ord** and click **Installera Swesaurus**. The API downloads the source XML (~12 MB) from Språkbanken, parses the 2017 Swesaurus LMF export, including empty Lemma nodes, SALDO sense IDs (for example `abakus..1`) and `SenseRelation` links with `label=syn`, and stores the result in the **same persistent SQLite volume as the crossword projects**.
 
 If the download fails due to DNS, TLS or remote service issues, download `swesaurus.xml` via the official [resource page](https://spraakbanken.gu.se/resurser/swesaurus) and click **Importera XML-fil** in the editor. The server validates the XML and refuses to replace the database if no pairs can be extracted.
 
@@ -25,7 +25,7 @@ If the download fails due to DNS, TLS or remote service issues, download `swesau
 4. Click a result to insert it. Locked cells cannot be modified.
 5. For an existing, already-filled answer, click **Sök markerat ord**. This enables **Tillåt att ersätta ifyllda bokstäver** so alternatives of the same length can be shown. Changing a letter may affect crossing words, so verify them afterward.
 
-Results are suggestions. The importer ignores multiword phrases and overly large (>50 words) fuzzy synonym groups to avoid low-quality associations.
+Results are suggestions. The importer ignores multiword phrases and excludes non-synonym relation labels (e.g. `iu`/`ui` and `tp`/`pt`, which encode broader/narrower or part/whole relations). It also ignores overly large (>50 words) fuzzy synsets when reading alternative WordNet-LMF variants.
 
 ## API
 
@@ -53,3 +53,7 @@ Recommended manual tests:
 - Try invalid XML upload; previously imported synonyms must remain usable.
 
 **Security:** The app is designed for a trusted home LAN. Its project and import endpoints do not implement authentication; do not publish the API or editor on the public internet without adding access controls.
+
+## Swesaurus 2017 compatibility
+
+The official 2017 XML is **not** primarily a WordNet-style `Synset` list. Its `LexicalEntry` nodes can have empty `Lemma` elements. The word is derived from `Sense id="ord..1"`, and related words are linked by `SenseRelation targets="annan..1"` with a `feat` tag `att="label" val="syn"`. The importer supports this structure and keeps the existing WordNet-LMF synset parser as a fallback. Repeated relations from multiple sources are deduplicated. The examples in the tests reflect the published Swesaurus structure.
