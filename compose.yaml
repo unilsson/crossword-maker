@@ -8,5 +8,3 @@ services:
     restart: unless-stopped
     ports:
       - "${CROSSWORD_PORT:-8085}:80"
-    security_opt:
-      - no-new-privileges:true
