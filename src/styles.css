@@ -1212,3 +1212,14 @@ footer {
 .project-bar button { padding: 10px 12px; border-radius: 8px; background: #171717; color: white; cursor: pointer; }
 .project-bar button:disabled { opacity: .45; cursor: not-allowed; }
 .project-bar span { color: #665f55; font-size: 13px; }
+
+.range-word-search {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid #cfc7ba;
+  border-radius: 10px;
+  background: #f8f4ed;
+}
+.range-word-search h3 { margin: 0 0 8px; font-size: 15px; }
+.range-word-search .candidate-list { max-height: 280px; overflow-y: auto; }
+.range-word-search code { letter-spacing: .08em; overflow-wrap: anywhere; }
