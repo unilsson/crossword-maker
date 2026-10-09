@@ -117,3 +117,41 @@ This is intentionally a small, local form of assistance. Full multi-answer searc
 - Custom words: localStorage.
 
 Keeping these concerns separate avoids inflating project JSON and allows the dictionary to be reused across puzzles.
+
+
+## Sprint 4: semantic image phrases
+
+Sprint 4 turns the image notation introduced before Sprint 4 into derived answer-like structures.
+
+Each image arrow owns one `ImagePhrase`. The phrase start is derived from the image edge, the edge offset, the arrow's outward distance and its final direction. From that start cell the phrase traverses ordinary letter cells to the right or downward until a blocker is reached.
+
+Image phrases are derived rather than persisted. The persisted arrow only stores the geometry plus an optional lock flag. This mirrors the existing clue-answer design and prevents stale phrase metadata after grid edits.
+
+### Word boundaries
+
+Letter cells may contain decorative `wordStarts` markers for rightward or downward image phrases. A marker does not stop traversal. Instead it splits the containing image phrase into `ImagePhraseWord` segments. This makes a phrase such as:
+
+```text
+..... → ......
+```
+
+one semantic phrase with two searchable words.
+
+Markers that do not belong to any image phrase in the same direction generate a validation warning.
+
+### Crossings and locking
+
+Normal clue answers and image phrases share the same physical letter cells, so crossings automatically share one letter value.
+
+Normal answers can be locked by clue ID. Image phrases are locked on their image arrow. Locked structures contribute their cells to a protected-cell set. Assisted filling refuses to change a protected crossing letter, which prevents a suggestion for one answer from silently damaging an already accepted answer or phrase.
+
+### Assisted fill
+
+Sprint 4 remains deliberately local rather than doing global autofill:
+
+- normal answers keep pattern-based dictionary candidates and gain a one-click best candidate;
+- every word inside an image phrase gets its own dictionary search and candidate buttons;
+- the best candidate for an image-phrase word can be filled with one click;
+- locked structures disable destructive fill.
+
+Full constraint propagation and backtracking across several answers remains deferred to the next fill-focused sprint.
