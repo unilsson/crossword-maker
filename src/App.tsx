@@ -36,6 +36,8 @@ import type {
   ImageArrow,
   ImageArrowDirection,
   ImageArrowEdge,
+  ImagePhrase,
+  ImagePhraseWord,
   WordStartDirection,
 } from "./types/crossword";
 import type { WordLexicon, WordListDataset } from "./types/wordlist";
@@ -208,6 +210,19 @@ export default function App() {
     return [];
   }, [analysis, selected, selectedCell, selectedImage]);
 
+  const selectedCellImagePhrases = useMemo<ImagePhrase[]>(() => {
+    if (!selected || selectedCell?.type !== "letter" || selectedImage) return [];
+    return analysis.imagePhrasesByCell.get(answerCellKey(selected)) ?? [];
+  }, [analysis, selected, selectedCell, selectedImage]);
+
+  const selectedImagePhrases = useMemo<ImagePhrase[]>(
+    () =>
+      selectedImage
+        ? analysis.imagePhrasesByImageId.get(selectedImage.id) ?? []
+        : [],
+    [analysis, selectedImage],
+  );
+
   const activeAnswer =
     selectedAnswers.find((answer) => answer.id === activeAnswerId) ??
     selectedAnswers[0] ??
@@ -220,8 +235,35 @@ export default function App() {
         highlighted.add(answerCellKey(cell));
       }
     }
+    for (const phrase of selectedCellImagePhrases) {
+      for (const cell of phrase.cells) {
+        highlighted.add(answerCellKey(cell));
+      }
+    }
+    for (const phrase of selectedImagePhrases) {
+      for (const cell of phrase.cells) {
+        highlighted.add(answerCellKey(cell));
+      }
+    }
     return highlighted;
-  }, [selectedAnswers]);
+  }, [selectedAnswers, selectedCellImagePhrases, selectedImagePhrases]);
+
+  const lockedCellKeys = useMemo(() => {
+    const locked = new Set<string>();
+    const lockedAnswerIds = new Set(crossword.lockedAnswerIds ?? []);
+
+    for (const answer of analysis.answers) {
+      if (!lockedAnswerIds.has(answer.id)) continue;
+      for (const cell of answer.cells) locked.add(answerCellKey(cell));
+    }
+
+    for (const phrase of analysis.imagePhrases) {
+      if (!phrase.locked) continue;
+      for (const cell of phrase.cells) locked.add(answerCellKey(cell));
+    }
+
+    return locked;
+  }, [analysis.answers, analysis.imagePhrases, crossword.lockedAnswerIds]);
 
   const problemCells = useMemo(
     () =>
@@ -238,21 +280,28 @@ export default function App() {
     (issue) => issue.severity === "warning",
   ).length;
 
-  const answerPattern = (answer: Answer) =>
-    answer.cells
+  const cellsPattern = (
+    cells: { row: number; col: number }[],
+    blank = "·",
+  ) =>
+    cells
       .map(({ row, col }) => {
         const cell = crossword.cells[row][col];
-        return cell.type === "letter" && cell.value ? cell.value : "·";
+        return cell.type === "letter" && cell.value ? cell.value : blank;
       })
       .join("");
 
+  const answerPattern = (answer: Answer) => cellsPattern(answer.cells);
   const answerSearchPattern = (answer: Answer) =>
-    answer.cells
-      .map(({ row, col }) => {
-        const cell = crossword.cells[row][col];
-        return cell.type === "letter" && cell.value ? cell.value : ".";
-      })
-      .join("");
+    cellsPattern(answer.cells, ".");
+
+  const imagePhrasePattern = (phrase: ImagePhrase) =>
+    phrase.words.map((word) => cellsPattern(word.cells)).join(" ");
+
+  const imagePhraseWordSearch = (word: ImagePhraseWord) =>
+    lexicon
+      ? searchWords(lexicon, customWords, cellsPattern(word.cells, "."), 12)
+      : null;
 
   const wordSearch = useMemo(() => {
     if (!lexicon || !activeAnswer || activeAnswer.cells.length === 0) return null;
@@ -345,7 +394,8 @@ export default function App() {
       edge: "bottom",
       offset: 0,
       direction: "right",
-      distance: 1,
+      distance: 0,
+      locked: false,
     };
 
     updateSelectedImage({
@@ -355,7 +405,9 @@ export default function App() {
 
   const updateImageArrow = (
     arrowId: string,
-    patch: Partial<Pick<ImageArrow, "edge" | "offset" | "direction" | "distance">>,
+    patch: Partial<
+      Pick<ImageArrow, "edge" | "offset" | "direction" | "distance" | "locked">
+    >,
   ) => {
     if (!selectedImage) return;
 
@@ -373,6 +425,79 @@ export default function App() {
         (arrow) => arrow.id !== arrowId,
       ),
     });
+  };
+
+  const toggleAnswerLock = (answerId: string) => {
+    setCrossword((current) => {
+      const locked = new Set(current.lockedAnswerIds ?? []);
+      if (locked.has(answerId)) locked.delete(answerId);
+      else locked.add(answerId);
+      return { ...current, lockedAnswerIds: Array.from(locked) };
+    });
+  };
+
+  const toggleImagePhraseLock = (arrowId: string) => {
+    const owner = crossword.images.find((image) =>
+      (image.arrows ?? []).some((arrow) => arrow.id === arrowId),
+    );
+    const arrow = owner?.arrows?.find((item) => item.id === arrowId);
+    if (!owner || !arrow) return;
+
+    setCrossword((current) => ({
+      ...current,
+      images: current.images.map((image) =>
+        image.id === owner.id
+          ? {
+              ...image,
+              arrows: (image.arrows ?? []).map((item) =>
+                item.id === arrowId
+                  ? { ...item, locked: !Boolean(item.locked) }
+                  : item,
+              ),
+            }
+          : image,
+      ),
+    }));
+  };
+
+  const fillCells = (
+    cells: { row: number; col: number }[],
+    word: string,
+    ownerLocked = false,
+  ) => {
+    if (ownerLocked || word.length !== cells.length) return false;
+
+    const conflict = cells.some(({ row, col }, index) => {
+      const key = row + ":" + col;
+      if (!lockedCellKeys.has(key)) return false;
+      const cell = crossword.cells[row][col];
+      return cell.type !== "letter" || cell.value !== word[index];
+    });
+
+    if (conflict) {
+      window.alert(
+        "Kan inte fylla eftersom en korsande låst fras eller ett låst svar skulle ändras.",
+      );
+      return false;
+    }
+
+    const letters = new Map<string, string>();
+    cells.forEach((cell, index) => {
+      letters.set(answerCellKey(cell), word[index]);
+    });
+
+    setCrossword((current) => ({
+      ...current,
+      cells: current.cells.map((row, rowIndex) =>
+        row.map((cell, colIndex) => {
+          const value = letters.get(rowIndex + ":" + colIndex);
+          return value !== undefined && cell.type === "letter"
+            ? { ...cell, value }
+            : cell;
+        }),
+      ),
+    }));
+    return true;
   };
 
   const installWordList = async () => {
@@ -412,26 +537,18 @@ export default function App() {
     saveCustomWords([]);
   };
 
-  const fillAnswer = (answer: Answer, word: string) => {
-    if (word.length !== answer.cells.length) return;
+  const fillAnswer = (answer: Answer, word: string) =>
+    fillCells(
+      answer.cells,
+      word,
+      (crossword.lockedAnswerIds ?? []).includes(answer.id),
+    );
 
-    const letters = new Map<string, string>();
-    answer.cells.forEach((cell, index) => {
-      letters.set(answerCellKey(cell), word[index]);
-    });
-
-    setCrossword((current) => ({
-      ...current,
-      cells: current.cells.map((row, rowIndex) =>
-        row.map((cell, colIndex) => {
-          const value = letters.get(rowIndex + ":" + colIndex);
-          return value !== undefined && cell.type === "letter"
-            ? { ...cell, value }
-            : cell;
-        }),
-      ),
-    }));
-  };
+  const fillImagePhraseWord = (
+    phrase: ImagePhrase,
+    word: ImagePhraseWord,
+    value: string,
+  ) => fillCells(word.cells, value, phrase.locked);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!selected || selectedImage) return;
@@ -450,6 +567,7 @@ export default function App() {
       selectedCell?.type === "letter"
     ) {
       event.preventDefault();
+      if (lockedCellKeys.has(answerCellKey(selected))) return;
       updateSelectedCell((cell) => setLetter(cell, event.key));
       const nextCol = Math.min(crossword.width - 1, selected.col + 1);
       const next = { row: selected.row, col: nextCol };
@@ -694,6 +812,9 @@ export default function App() {
             </div>
             <div className="analysis-status" aria-label="Korsordsstatus">
               <span className="status-ok">{analysis.answers.length} svar</span>
+              <span className="status-ok">
+                {analysis.imagePhrases.length} bildfraser
+              </span>
               {errorCount > 0 && (
                 <span className="status-error">{errorCount} fel</span>
               )}
@@ -713,6 +834,7 @@ export default function App() {
             selectedImageId={selectedImageId}
             highlightedCells={highlightedCells}
             problemCells={problemCells}
+            lockedCells={lockedCellKeys}
             uppercaseClues={Boolean(crossword.uppercaseClues)}
             onSelect={(row, col, extend) => {
               selectCell(row, col, extend);
@@ -863,7 +985,9 @@ export default function App() {
                   <div>
                     <strong>Pilar från bilden</strong>
                     <p className="hint">
-                      Lägg ut startpilar från bildens under- eller högerkant.
+                      Varje pil definierar nu en riktig bildfras. Frasen börjar
+                      efter pilens avstånd och fortsätter genom bokstavsrutor
+                      tills något blockerar.
                     </p>
                   </div>
                   <button
@@ -877,8 +1001,8 @@ export default function App() {
 
                 {(selectedImage.arrows ?? []).length === 0 ? (
                   <p className="hint">
-                    Inga bildpilar ännu. De påverkar inte vanlig
-                    ledtrådsanalys.
+                    Inga bildfraser ännu. Lägg till en pil för att skapa en
+                    semantisk fras från bilden.
                   </p>
                 ) : (
                   <div className="image-arrow-list">
@@ -953,7 +1077,7 @@ export default function App() {
                             </label>
 
                             <label className="field">
-                              <span>Utskjut</span>
+                              <span>Avstånd till start</span>
                               <input
                                 type="number"
                                 min={0}
@@ -973,6 +1097,119 @@ export default function App() {
                               />
                             </label>
                           </div>
+
+                          {(() => {
+                            const phrase =
+                              analysis.imagePhrasesByArrowId.get(arrow.id);
+                            if (!phrase) return null;
+
+                            return (
+                              <section className="image-phrase-summary">
+                                <div className="image-phrase-summary-heading">
+                                  <div>
+                                    <strong>Bildfras</strong>
+                                    <code>
+                                      {phrase.cells.length > 0
+                                        ? imagePhrasePattern(phrase)
+                                        : "—"}
+                                    </code>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="text-button"
+                                    onClick={() =>
+                                      toggleImagePhraseLock(arrow.id)
+                                    }
+                                  >
+                                    {phrase.locked ? "🔓 Lås upp" : "🔒 Lås"}
+                                  </button>
+                                </div>
+
+                                <small>
+                                  {phrase.cells.length} bokstäver ·{" "}
+                                  {phrase.words.length}{" "}
+                                  {phrase.words.length === 1 ? "ord" : "ord"}
+                                </small>
+
+                                {phrase.words.map((word) => {
+                                  const search = imagePhraseWordSearch(word);
+                                  const best = search?.matches[0];
+
+                                  return (
+                                    <div
+                                      className="image-phrase-word"
+                                      key={phrase.id + ":" + word.index}
+                                    >
+                                      <div className="image-phrase-word-heading">
+                                        <span>Ord {word.index + 1}</span>
+                                        <code>{cellsPattern(word.cells)}</code>
+                                      </div>
+
+                                      {wordListState !== "ready" || !lexicon ? (
+                                        <p className="hint">
+                                          Installera ordlistan för förslag.
+                                        </p>
+                                      ) : search && search.total > 0 ? (
+                                        <>
+                                          <div className="image-phrase-word-actions">
+                                            <small>
+                                              {search.total.toLocaleString(
+                                                "sv-SE",
+                                              )}{" "}
+                                              träffar
+                                            </small>
+                                            {best && !phrase.locked && (
+                                              <button
+                                                type="button"
+                                                className="secondary compact-action"
+                                                onClick={() =>
+                                                  fillImagePhraseWord(
+                                                    phrase,
+                                                    word,
+                                                    best.word,
+                                                  )
+                                                }
+                                              >
+                                                Fyll bästa: {best.word}
+                                              </button>
+                                            )}
+                                          </div>
+                                          <div className="phrase-candidate-list">
+                                            {search.matches
+                                              .slice(0, 6)
+                                              .map((candidate) => (
+                                                <button
+                                                  type="button"
+                                                  key={
+                                                    candidate.source +
+                                                    ":" +
+                                                    candidate.word
+                                                  }
+                                                  disabled={phrase.locked}
+                                                  onClick={() =>
+                                                    fillImagePhraseWord(
+                                                      phrase,
+                                                      word,
+                                                      candidate.word,
+                                                    )
+                                                  }
+                                                >
+                                                  {candidate.word}
+                                                </button>
+                                              ))}
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <p className="hint">
+                                          Inga ord matchar mönstret.
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </section>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -1127,13 +1364,18 @@ export default function App() {
                     <input
                       maxLength={1}
                       value={selectedCell.value}
+                      disabled={lockedCellKeys.has(answerCellKey(selected!))}
                       onChange={(event) =>
                         updateSelectedCell((cell) =>
                           setLetter(cell, event.target.value),
                         )
                       }
                     />
-                    <small>Stöd för A–Z samt Å, Ä och Ö.</small>
+                    <small>
+                      {lockedCellKeys.has(answerCellKey(selected!))
+                        ? "Rutan är låst av ett svar eller en bildfras."
+                        : "Stöd för A–Z samt Å, Ä och Ö."}
+                    </small>
                   </label>
 
                   <section className="word-start-section">
@@ -1169,6 +1411,26 @@ export default function App() {
                       )}
                     </div>
                   </section>
+
+                  {selectedCellImagePhrases.length > 0 && (
+                    <section className="answer-membership">
+                      <h3>Tillhör bildfras</h3>
+                      {selectedCellImagePhrases.map((phrase) => (
+                        <div className="answer-card" key={phrase.id}>
+                          <strong>
+                            Bildfras · {phrase.direction === "right" ? "→" : "↓"}
+                            {phrase.locked ? " · 🔒" : ""}
+                          </strong>
+                          <span>{imagePhrasePattern(phrase) || "—"}</span>
+                          <small>
+                            {phrase.words.length}{" "}
+                            {phrase.words.length === 1 ? "ord" : "ord"} ·{" "}
+                            {phrase.cells.length} bokstäver
+                          </small>
+                        </div>
+                      ))}
+                    </section>
+                  )}
 
                   <section className="answer-membership">
                     <h3>Tillhör svar</h3>
@@ -1279,7 +1541,7 @@ export default function App() {
                         </label>
 
                         {answer && (
-                          <div className="answer-summary">
+                          <div className="answer-summary answer-summary--with-lock">
                             <span>
                               <strong>Svar:</strong> {answer.cells.length}{" "}
                               {answer.cells.length === 1
@@ -1291,6 +1553,15 @@ export default function App() {
                                 ? answerPattern(answer)
                                 : "—"}
                             </code>
+                            <button
+                              type="button"
+                              className="text-button"
+                              onClick={() => toggleAnswerLock(answer.id)}
+                            >
+                              {(crossword.lockedAnswerIds ?? []).includes(answer.id)
+                                ? "🔓 Lås upp"
+                                : "🔒 Lås"}
+                            </button>
                           </div>
                         )}
 
@@ -1407,8 +1678,19 @@ export default function App() {
             {activeAnswer && (
               <section className="candidate-section">
                 <div className="candidate-heading">
-                  <h3>Ordförslag</h3>
-                  <code>{answerPattern(activeAnswer)}</code>
+                  <div>
+                    <h3>Ordförslag</h3>
+                    <code>{answerPattern(activeAnswer)}</code>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => toggleAnswerLock(activeAnswer.id)}
+                  >
+                    {(crossword.lockedAnswerIds ?? []).includes(activeAnswer.id)
+                      ? "🔓 Lås upp"
+                      : "🔒 Lås"}
+                  </button>
                 </div>
 
                 {selectedAnswers.length > 1 && (
@@ -1437,12 +1719,28 @@ export default function App() {
                   <p className="hint">Ledtråden har inga svarsrutor.</p>
                 ) : wordSearch && wordSearch.total > 0 ? (
                   <>
-                    <p className="candidate-count">
-                      {wordSearch.total.toLocaleString("sv-SE")} träffar
-                      {wordSearch.total > wordSearch.matches.length
-                        ? " · visar de första " + wordSearch.matches.length
-                        : ""}
-                    </p>
+                    <div className="candidate-actions-row">
+                      <p className="candidate-count">
+                        {wordSearch.total.toLocaleString("sv-SE")} träffar
+                        {wordSearch.total > wordSearch.matches.length
+                          ? " · visar de första " + wordSearch.matches.length
+                          : ""}
+                      </p>
+                      {wordSearch.matches[0] &&
+                        !(crossword.lockedAnswerIds ?? []).includes(
+                          activeAnswer.id,
+                        ) && (
+                          <button
+                            type="button"
+                            className="secondary compact-action"
+                            onClick={() =>
+                              fillAnswer(activeAnswer, wordSearch.matches[0].word)
+                            }
+                          >
+                            Fyll bästa
+                          </button>
+                        )}
+                    </div>
                     <div className="candidate-list">
                       {wordSearch.matches.map((candidate) => (
                         <button
@@ -1477,8 +1775,8 @@ export default function App() {
       </section>
 
       <footer>
-        Svar och validering räknas fram från rutnätet. Den svenska ordlistan
-        cachas lokalt i IndexedDB och egna ord sparas i webbläsaren.
+        Svar, bildfraser och validering räknas fram från rutnätet. Låsningar
+        sparas i projektet. Den svenska ordlistan cachas lokalt i IndexedDB.
       </footer>
     </main>
   );
