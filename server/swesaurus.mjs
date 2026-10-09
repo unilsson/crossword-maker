@@ -13,8 +13,8 @@ const crosswordWord = (value) => /^[A-ZÅÄÖ]{2,50}$/.test(value);
 // The official 2017 Swesaurus LMF export has empty Lemma nodes. Words are
 // encoded in SALDO sense ids, e.g. "abakus..1" or "världsdel..1".
 const wordFromSaldoSenseId = (id) => {
-  if (!/\\.\\.[0-9]+$/.test(String(id ?? ""))) return null;
-  const word = normalize(String(id).replace(/\\.\\.[0-9]+$/, ""));
+  if (!/\.\.[0-9]+$/.test(String(id ?? ""))) return null;
+  const word = normalize(String(id).replace(/\.\.[0-9]+$/, ""));
   return crosswordWord(word) ? word : null;
 };
 
@@ -53,7 +53,7 @@ export const extractSwesaurus = (xml) => {
   const addRelation = (first, second) => {
     if (!first || !second || first === second) return;
     const sorted = [first, second].sort((a, b) => a.localeCompare(b, "sv-SE"));
-    directedPairs.add(sorted.join("\\t"));
+    directedPairs.add(sorted.join("\t"));
   };
   const add = (key, word) => {
     if (!key || !crosswordWord(word)) return;
@@ -81,7 +81,7 @@ export const extractSwesaurus = (xml) => {
         for (const relation of many(sense.SenseRelation)) {
           // Swesaurus has many relation types; only "syn" means synonyms.
           if (feature(relation, "label") !== "syn") continue;
-          const targets = (feature(relation, "targets") ?? "").split(/\\s+/).filter(Boolean);
+          const targets = (feature(relation, "targets") ?? "").split(/\s+/).filter(Boolean);
           for (const target of targets) {
             const other = wordFromSaldoSenseId(target);
             addRelation(word, other);
