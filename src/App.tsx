@@ -1932,7 +1932,7 @@ export default function App() {
               </label>
               {rangeValid && !rangePattern.includes(".") && (
                 <button type="button" className="secondary compact-action"
-                  onClick={() => setSynonymTerm(rangePattern)}>
+                  onClick={() => { setSynonymTerm(rangePattern); setReplaceSynonymLetters(true); }}>
                   Sök markerat ord ({rangePattern})
                 </button>
               )}
