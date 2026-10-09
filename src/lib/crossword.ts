@@ -28,6 +28,7 @@ export const createEmptyCrossword = (
   ),
   images: [],
   uppercaseClues: false,
+  lockedAnswerIds: [],
 });
 
 export const cycleCellType = (cell: Cell): Cell => {
