@@ -252,6 +252,43 @@ export default function App() {
     return [selected];
   }, [selected, selectionAnchor]);
 
+  const rangeValid = selectedRange.length >= 2 &&
+    selectedRange.every(({ row, col }) => crossword.cells[row]?.[col]?.type === "letter" &&
+      !imageAtCell(crossword.images, row, col));
+  const rangePattern = rangeValid
+    ? selectedRange.map(({ row, col }) => {
+        const cell = crossword.cells[row][col];
+        return cell.type === "letter" && cell.value ? cell.value : ".";
+      }).join("")
+    : "";
+  const rangeSuggestions = useMemo(
+    () => lexicon && rangeValid ? searchWords(lexicon, customWords, rangePattern, 60) : null,
+    [lexicon, customWords, rangePattern, rangeValid],
+  );
+
+  const fillSelectedRange = (word: string) => {
+    if (!rangeValid || word.length !== selectedRange.length) return;
+    const matches = selectedRange.every(({ row, col }, index) => {
+      const cell = crossword.cells[row][col];
+      return cell.type === "letter" &&
+        (!cell.value || cell.value === word[index]) &&
+        (!lockedCellKeys.has(answerCellKey({ row, col })) || cell.value === word[index]);
+    });
+    if (!matches) {
+      window.alert("Ordet skulle ändra en befintlig bokstav eller en låst ruta.");
+      return;
+    }
+    const letters = new Map(selectedRange.map((position, index) =>
+      [answerCellKey(position), word[index]]));
+    setCrossword(current => ({
+      ...current,
+      cells: current.cells.map((row, rowIndex) => row.map((cell, colIndex) => {
+        const value = letters.get(rowIndex + ":" + colIndex);
+        return value !== undefined && cell.type === "letter" ? { ...cell, value } : cell;
+      })),
+    }));
+  };
+
   const selectedRangeKeys = useMemo(
     () => new Set(selectedRange.map((cell) => answerCellKey(cell))),
     [selectedRange],
@@ -1751,6 +1788,50 @@ export default function App() {
             <p className="dictionary-source">
               Källa: {WORD_LIST_SOURCE_NAME} · {WORD_LIST_LICENSE}
             </p>
+
+            <section className="range-word-search" aria-label="Ordförslag för markerade rutor">
+              <h3>Ord för markerade rutor</h3>
+              <p className="hint">
+                Klicka på första rutan och Shift-klicka på sista i samma rad eller kolumn.
+                Välj sedan ett ord för att fylla hela markeringen.
+              </p>
+              {selectedRange.length < 2 ? (
+                <p className="hint">Markera minst två rutor vågrätt eller lodrätt.</p>
+              ) : !rangeValid ? (
+                <p className="inline-issue inline-issue--error">
+                  Markeringen får bara innehålla bokstavsrutor, inga bilder, svarta rutor eller ledtrådsrutor.
+                </p>
+              ) : (
+                <>
+                  <p className="range-selection-summary">
+                    {selectionAnchor?.row === selected?.row ? "Vågrätt" : "Lodrätt"} ·
+                    {" "}{selectedRange.length} bokstäver · <code>{rangePattern.replaceAll(".", "·")}</code>
+                  </p>
+                  {!lexicon ? (
+                    <p className="hint">Installera den svenska ordlistan för att få förslag.</p>
+                  ) : rangeSuggestions && rangeSuggestions.total > 0 ? (
+                    <>
+                      <p className="candidate-count">
+                        {rangeSuggestions.total.toLocaleString("sv-SE")} matchningar
+                        {rangeSuggestions.total > rangeSuggestions.matches.length
+                          ? " · visar " + rangeSuggestions.matches.length : ""}
+                      </p>
+                      <div className="candidate-list">
+                        {rangeSuggestions.matches.map(candidate => (
+                          <button type="button" className="candidate-word"
+                            key={candidate.source + ":" + candidate.word}
+                            onClick={() => fillSelectedRange(candidate.word)}
+                            title="Infoga ordet i de markerade rutorna">
+                            <span>{candidate.word}</span>
+                            <small>{candidate.source === "custom" ? "eget ord" : "ordlista"}</small>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : <p className="hint">Inga ord passar det markerade mönstret.</p>}
+                </>
+              )}
+            </section>
 
             <div className="custom-word-row">
               <input
