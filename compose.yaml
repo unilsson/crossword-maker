@@ -1,0 +1,10 @@
+services:
+  crossword-maker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crossword-maker:local
+    container_name: crossword-maker
+    restart: unless-stopped
+    ports:
+      - "${CROSSWORD_PORT:-8085}:80"
