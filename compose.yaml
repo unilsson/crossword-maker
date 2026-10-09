@@ -12,12 +12,12 @@ services:
       - api
 
   api:
-    image: node:24-alpine
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    image: crossword-maker-api:local
     restart: unless-stopped
-    working_dir: /app
-    command: ["node", "index.mjs"]
     volumes:
-      - ./server:/app:ro
       - crossword-data:/data
     environment:
       DATA_DIR: /data
