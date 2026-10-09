@@ -120,12 +120,26 @@ const server = createServer(async (req, res) => {
         path === "/api/synonyms/upload" && req.method === "POST") {
       if (importing) return send(res, 409, { error: "En import pågår redan." });
       importing = true;
+      const remoteInstall = path.endsWith("/install");
+      let xml;
       try {
-        const xml = path.endsWith("/install")
-          ? await fetchSwesaurus()
-          : (await readBody(req, 20_000_000)).toString("utf8");
-        const meta = importSynonyms(xml);
-        return send(res, 200, meta);
+        if (remoteInstall) {
+          try {
+            xml = await fetchSwesaurus();
+          } catch (error) {
+            console.error("Swesaurus download failed:", error);
+            return send(res, 502, { error: "Kunde inte hämta Swesaurus från Språkbanken. Prova XML-uppladdning. Detalj: " + String(error.message || error) });
+          }
+        } else {
+          xml = (await readBody(req, 20_000_000)).toString("utf8");
+        }
+        try {
+          const meta = importSynonyms(xml);
+          return send(res, 200, meta);
+        } catch (error) {
+          console.error("Swesaurus import failed:", error);
+          return send(res, 422, { error: "Importen misslyckades: " + String(error.message || error) });
+        }
       } finally {
         importing = false;
       }
