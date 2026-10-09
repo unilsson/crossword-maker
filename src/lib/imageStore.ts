@@ -30,9 +30,13 @@ export const saveImageAsset = async (assetId: string, file: File): Promise<void>
   });
 
   db.close();
+  const response = await fetch("/api/assets/" + assetId, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+  if (!response.ok) throw new Error("Kunde inte spara bilden på servern.");
 };
 
 export const loadImageAsset = async (assetId: string): Promise<Blob | null> => {
+  const remote = await fetch("/api/assets/" + assetId).catch(() => null);
+  if (remote?.ok) return remote.blob();
   const db = await openDb();
 
   const result = await new Promise<Blob | null>((resolve, reject) => {
@@ -60,4 +64,21 @@ export const deleteImageAsset = async (assetId: string): Promise<void> => {
   });
 
   db.close();
+  await fetch("/api/assets/" + assetId, { method: "DELETE" }).catch(() => null);
+}; 
+
+/** Copy existing browser-only images to server before creating a server project. */
+export const syncImageAssets = async (ids: string[]): Promise<void> => {
+  for (const id of ids) {
+    const exists = await fetch("/api/assets/" + id);
+    if (exists.ok) continue;
+    const image = await loadImageAsset(id);
+    if (!image) throw new Error("En bild saknas i webbläsaren: " + id);
+    const saved = await fetch("/api/assets/" + id, {
+      method: "PUT",
+      headers: { "Content-Type": image.type },
+      body: image,
+    });
+    if (!saved.ok) throw new Error("Kunde inte flytta bilden till servern.");
+  }
 };

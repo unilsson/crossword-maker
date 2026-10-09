@@ -13,7 +13,9 @@ import {
   setLetter,
   updateClue,
 } from "./lib/crossword";
-import { deleteImageAsset, saveImageAsset } from "./lib/imageStore";
+import { deleteImageAsset, saveImageAsset, syncImageAssets } from "./lib/imageStore";
+import { listProjects, getProject, createProject, saveProject, removeProject } from "./lib/projects";
+import type { ProjectSummary } from "./lib/projects";
 import {
   buildLexicon,
   installSwedishWordList,
@@ -93,6 +95,71 @@ export default function App() {
     }
   });
 
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [saveStatus, setSaveStatus] = useState("Lokalt utkast – inte sparat på servern");
+  const [projectBusy, setProjectBusy] = useState(false);
+  const projectIdRef = useRef<string | null>(null);
+  const crosswordRef = useRef(crossword);
+  crosswordRef.current = crossword;
+  const writeQueue = useRef<Promise<void>>(Promise.resolve());
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadProjects = async () => setProjects(await listProjects());
+  const persist = async () => {
+    const id = projectIdRef.current;
+    if (!id) return;
+    const snapshot = crosswordRef.current;
+    const next = writeQueue.current.then(async () => {
+      await saveProject(id, snapshot);
+    });
+    writeQueue.current = next.catch(() => undefined);
+    await next;
+    setSaveStatus("Sparat på servern");
+    await loadProjects();
+  };
+  const flush = async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    await persist();
+  };
+  const openProject = async (id: string) => {
+    setProjectBusy(true);
+    try {
+      await flush();
+      const document = await getProject(id);
+      const migrated = migrateCrossword(document);
+      if (!migrated) throw new Error("Ogiltigt korsord.");
+      projectIdRef.current = id;
+      setProjectId(id);
+      crosswordRef.current = migrated;
+      await createServerProject(migrated);
+      setSelected({ row: 0, col: 0 });
+      setSelectionAnchor({ row: 0, col: 0 });
+      setSelectedImageId(null);
+      setSaveStatus("Sparat på servern");
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Kunde inte öppna projektet.");
+    } finally { setProjectBusy(false); }
+  };
+  const createServerProject = async (document: Crossword) => {
+    setProjectBusy(true);
+    try {
+      await flush();
+      await syncImageAssets(document.images.map(image => image.assetId));
+      const created = await createProject(document);
+      projectIdRef.current = created.id;
+      setProjectId(created.id);
+      crosswordRef.current = document;
+      setCrossword(document);
+      setSaveStatus("Sparat på servern");
+      await loadProjects();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Kunde inte skapa projektet.");
+    } finally { setProjectBusy(false); }
+  };
+  useEffect(() => {
+    void loadProjects().catch(() => setSaveStatus("Servern kan inte nås."));
+  }, []);
+
   const [selected, setSelected] = useState<Selection>({ row: 0, col: 0 });
   const [selectionAnchor, setSelectionAnchor] = useState<Selection>({
     row: 0,
@@ -114,7 +181,16 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(crossword));
-  }, [crossword]);
+    if (!projectId) return;
+    setSaveStatus("Ändringar väntar på att sparas…");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void persist().catch((error: unknown) =>
+        setSaveStatus("Sparfel: " + (error instanceof Error ? error.message : "okänt fel"))
+      );
+    }, 1000);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [crossword, projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -706,9 +782,9 @@ export default function App() {
     setSelectionAnchor({ row, col });
   };
 
-  const reset = () => {
+  const reset = async () => {
     if (!window.confirm("Skapa ett nytt tomt 15×15-korsord?")) return;
-    setCrossword(createEmptyCrossword());
+    await createServerProject(createEmptyCrossword());
     setSelected({ row: 0, col: 0 });
     setSelectionAnchor({ row: 0, col: 0 });
     setSelectedImageId(null);
@@ -789,6 +865,38 @@ export default function App() {
         </div>
       </header>
 
+      <section className="project-bar" aria-label="Projekt">
+        <label htmlFor="saved-projects">Sparade korsord</label>
+        <select id="saved-projects" value={projectId ?? ""} disabled={projectBusy}
+          onChange={event => { if (event.target.value) void openProject(event.target.value); }}>
+          <option value="">Lokalt utkast – välj ett projekt</option>
+          {projects.map(project => <option key={project.id} value={project.id}>
+            {project.title || "Namnlöst"} – {new Date(project.updatedAt).toLocaleString("sv-SE")}
+          </option>)}
+        </select>
+        <button type="button" disabled={projectBusy}
+          onClick={() => void createServerProject(crossword)}>Spara som nytt projekt</button>
+        <button type="button" disabled={!projectId || projectBusy}
+          onClick={() => void flush().catch(error => setSaveStatus("Sparfel: " + String(error)))}>Spara nu</button>
+        <button type="button" disabled={!projectId || projectBusy}
+          onClick={() => {
+            if (!projectId || !window.confirm("Ta bort detta korsord från servern?")) return;
+            void (async () => {
+              setProjectBusy(true);
+              try {
+                await flush();
+                await removeProject(projectId);
+                projectIdRef.current = null;
+                setProjectId(null);
+                setSaveStatus("Projekt borttaget – lokalt utkast kvar.");
+                await loadProjects();
+              } catch (error) {
+                window.alert(String(error));
+              } finally { setProjectBusy(false); }
+            })();
+          }}>Ta bort</button>
+        <span role="status">{saveStatus}</span>
+      </section>
       <section className="workspace">
         <div className="board-panel">
           <div className="board-toolbar">

@@ -8,3 +8,21 @@ services:
     restart: unless-stopped
     ports:
       - "${CROSSWORD_PORT:-8085}:80"
+    depends_on:
+      - api
+
+  api:
+    image: node:24-alpine
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "index.mjs"]
+    volumes:
+      - ./server:/app:ro
+      - crossword-data:/data
+    environment:
+      DATA_DIR: /data
+    expose:
+      - "3001"
+
+volumes:
+  crossword-data:
