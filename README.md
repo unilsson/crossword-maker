@@ -2,7 +2,7 @@
 
 A browser-based editor for **Swedish/Scandinavian-style crosswords**: clue text lives inside the grid, arrows indicate answer direction, images can occupy multi-cell areas, answer structure is derived automatically, and a Swedish word list can suggest matching words.
 
-## Sprint 3
+## Sprint 4
 
 The editor currently includes:
 
@@ -16,8 +16,12 @@ The editor currently includes:
 - Images that can span multiple rows and columns.
 - Optional per-cell background colors, including a free color picker and quick presets.
 - Straight multi-cell color selection: click one cell, then Shift-click another cell in the same row or column to color the whole range at once.
-- Decorative word-start arrows inside image phrases; these mark a new word without stopping or constraining the phrase.
-- Configurable arrows leaving an image from its bottom or right edge, with selectable edge position, final direction and reach.
+- Semantic image phrases derived from arrows leaving images.
+- Word-start arrows inside image phrases; these split a phrase into words without ending the phrase.
+- Configurable image-arrow edge position, direction and distance to the first phrase cell.
+- Pattern display and Swedish dictionary suggestions for every word in an image phrase.
+- One-click "Fyll bästa" assistance for normal answers and image-phrase words.
+- Locking for normal answers and image phrases so assisted filling cannot change protected letters.
 - Automatic answer detection from clue arrows.
 - Answer highlighting and reverse lookup from letter cells.
 - Structural validation with clickable errors and warnings.
@@ -33,7 +37,9 @@ A clue pointing right (`→`) starts in the cell immediately to the right and co
 
 Derived answers are not stored in project JSON. They are recalculated from the current layout.
 
-Image-phrase arrows are deliberately decorative. A word-start arrow on a letter cell only means “new word here”; it does not stop ordinary answer analysis. Image exit arrows are stored with the image and can be placed at different positions along the image's bottom or right edge.
+Image arrows now define semantic image phrases. The arrow edge and offset determine where it leaves the image; its distance determines how many cells outward the phrase starts, and its direction determines whether the phrase then continues right or down. The phrase continues through ordinary letter cells until the grid edge, a black/clue cell or another image blocks it.
+
+A word-start arrow on a letter cell means “new word here” for a matching image phrase direction. It does not terminate the phrase. The inspector shows the complete phrase pattern with spaces at these word boundaries, and each word can use the Swedish dictionary independently.
 
 
 ### Clue typography
@@ -106,7 +112,7 @@ npm run build
 
 ## Project format
 
-Crossword JSON remains version 2. Optional cell colors are stored directly on cells as a backward-compatible `fill` property. Sprint 3 dictionary state remains outside the project JSON, so no project-format bump is needed.
+Crossword JSON remains version 2. Optional cell colors, word-start markers, image-phrase locks and normal-answer locks are backward-compatible optional fields, so Sprint 4 does not require a project-format bump. Dictionary state remains outside project JSON.
 
 Image binaries are stored separately in IndexedDB. The downloaded Swedish word list is also cached separately in IndexedDB. Custom words are stored in localStorage.
 
@@ -114,7 +120,7 @@ See [docs/design.md](docs/design.md) for design notes.
 
 ## Planned next steps
 
-1. Add richer word metadata and ranking/frequency data.
-2. Add assisted multi-answer fill and automatic fill/backtracking.
+1. Add true multi-answer autofill with constraint propagation and backtracking.
+2. Add richer word metadata and ranking/frequency data.
 3. Generate clue suggestions with AI.
 4. Add portable project bundles plus print/PDF and interactive publishing.
