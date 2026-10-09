@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { SWESAURUS_URL, SWESAURUS_PAGE, SWESAURUS_LICENSE, extractSwesaurus, normalizedTerm, matchesCrosswordPattern } from "./swesaurus.mjs";
 
 const dir = process.env.DATA_DIR || "/data";
 mkdirSync(dir, { recursive: true });
@@ -13,6 +14,18 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 CREATE TABLE IF NOT EXISTS assets (
  id TEXT PRIMARY KEY, mime TEXT NOT NULL, content BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS synonym_pairs (
+ term TEXT NOT NULL, candidate TEXT NOT NULL,
+ PRIMARY KEY(term, candidate)
+);
+CREATE TABLE IF NOT EXISTS synonym_metadata (
+ id INTEGER PRIMARY KEY CHECK(id = 1),
+ imported_at TEXT NOT NULL,
+ entries INTEGER NOT NULL,
+ pairs INTEGER NOT NULL,
+ groups INTEGER NOT NULL,
+ skipped_groups INTEGER NOT NULL
 );`);
 
 const send = (res, status, body) => {
@@ -45,11 +58,92 @@ const insertAsset = db.prepare("INSERT OR REPLACE INTO assets (id,mime,content) 
 const findAsset = db.prepare("SELECT mime,content FROM assets WHERE id=?");
 const deleteAsset = db.prepare("DELETE FROM assets WHERE id=?");
 
+const synonymStatus = db.prepare("SELECT imported_at AS importedAt, entries, pairs, groups, skipped_groups AS skippedGroups FROM synonym_metadata WHERE id=1");
+const pairInsert = db.prepare("INSERT OR IGNORE INTO synonym_pairs (term,candidate) VALUES (?,?)");
+const metaInsert = db.prepare("INSERT OR REPLACE INTO synonym_metadata (id,imported_at,entries,pairs,groups,skipped_groups) VALUES (1,?,?,?,?,?)");
+const lookupSynonyms = db.prepare("SELECT candidate FROM synonym_pairs WHERE term=? ORDER BY candidate COLLATE NOCASE");
+
+let importing = false;
+const importSynonyms = (xml) => {
+  const result = extractSwesaurus(xml);
+  db.exec("BEGIN");
+  try {
+    db.exec("DELETE FROM synonym_pairs");
+    for (const [a, b] of result.pairs) {
+      pairInsert.run(a, b);
+      pairInsert.run(b, a);
+    }
+    metaInsert.run(new Date().toISOString(), result.entries, result.pairs.length, result.groups, result.skippedLargeGroups);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+  return { installed: true, ...synonymStatus.get(), source: SWESAURUS_PAGE, license: SWESAURUS_LICENSE };
+};
+
+const fetchSwesaurus = async () => {
+  const response = await fetch(SWESAURUS_URL, { signal: AbortSignal.timeout(85000) });
+  if (!response.ok) throw new Error("Nedladdningen misslyckades (HTTP " + response.status + ").");
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of response.body) {
+    size += chunk.length;
+    if (size > 20_000_000) throw new Error("Swesaurus-filen är oväntat stor.");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+};
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
     const path = url.pathname;
     if (path === "/api/health" && req.method === "GET") return send(res, 200, { ok: true });
+    if (path === "/api/synonyms/status" && req.method === "GET") {
+      const meta = synonymStatus.get();
+      return send(res, 200, { installed: Boolean(meta), ...meta, importing, source: SWESAURUS_PAGE, license: SWESAURUS_LICENSE });
+    }
+    if (path === "/api/synonyms" && req.method === "GET") {
+      const term = normalizedTerm(url.searchParams.get("term") ?? "");
+      const pattern = normalizedTerm(url.searchParams.get("pattern") ?? "");
+      if (!/^[A-ZÅÄÖ]{2,50}$/.test(term)) return send(res, 400, { error: "Ange ett svenskt sökord (2–50 bokstäver)." });
+      if (pattern && (!/^[A-ZÅÄÖ.]{2,50}$/.test(pattern))) {
+        return send(res, 400, { error: "Ogiltigt bokstavsmönster." });
+      }
+      const alternatives = lookupSynonyms.all(term)
+        .map(row => row.candidate)
+        .filter(word => !pattern || matchesCrosswordPattern(word, pattern));
+      return send(res, 200, { term, pattern, total: alternatives.length, matches: alternatives.slice(0, 60) });
+    }
+    if (path === "/api/synonyms/install" && req.method === "POST" ||
+        path === "/api/synonyms/upload" && req.method === "POST") {
+      if (importing) return send(res, 409, { error: "En import pågår redan." });
+      importing = true;
+      const remoteInstall = path.endsWith("/install");
+      let xml;
+      try {
+        if (remoteInstall) {
+          try {
+            xml = await fetchSwesaurus();
+          } catch (error) {
+            console.error("Swesaurus download failed:", error);
+            return send(res, 502, { error: "Kunde inte hämta Swesaurus från Språkbanken. Prova XML-uppladdning. Detalj: " + String(error.message || error) });
+          }
+        } else {
+          xml = (await readBody(req, 20_000_000)).toString("utf8");
+        }
+        try {
+          const meta = importSynonyms(xml);
+          return send(res, 200, meta);
+        } catch (error) {
+          console.error("Swesaurus import failed:", error);
+          return send(res, 422, { error: "Importen misslyckades: " + String(error.message || error) });
+        }
+      } finally {
+        importing = false;
+      }
+    }
     if (path === "/api/projects" && req.method === "GET") return send(res, 200, projectList.all());
     if (path === "/api/projects" && req.method === "POST") {
       const document = JSON.parse((await readBody(req, 5_000_000)).toString());

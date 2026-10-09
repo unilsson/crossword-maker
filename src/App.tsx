@@ -43,6 +43,8 @@ import type {
   WordStartDirection,
 } from "./types/crossword";
 import type { WordLexicon, WordListDataset } from "./types/wordlist";
+import { getSynonymStatus, getSynonyms, installSwesaurus, uploadSwesaurus } from "./lib/synonyms";
+import type { SynonymStatus, SynonymResults } from "./lib/synonyms";
 
 const STORAGE_KEY = "crossword-maker.current";
 
@@ -178,6 +180,36 @@ export default function App() {
   const [customWords, setCustomWords] = useState<string[]>(() => loadCustomWords());
   const [customWordInput, setCustomWordInput] = useState("");
   const [activeAnswerId, setActiveAnswerId] = useState<string | null>(null);
+  const [synonymTerm, setSynonymTerm] = useState("");
+  const [synonymStatus, setSynonymStatus] = useState<SynonymStatus | null>(null);
+  const [synonymResults, setSynonymResults] = useState<SynonymResults | null>(null);
+  const [synonymBusy, setSynonymBusy] = useState(false);
+  const [synonymSearching, setSynonymSearching] = useState(false);
+  const [synonymError, setSynonymError] = useState("");
+  const [replaceSynonymLetters, setReplaceSynonymLetters] = useState(false);
+  const synonymFileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void getSynonymStatus().then(setSynonymStatus).catch((error: unknown) => {
+      setSynonymError(error instanceof Error ? error.message : "Synonymtjänsten kan inte nås.");
+    });
+  }, []);
+
+  const importSynonyms = async (file?: File) => {
+    if (synonymBusy) return;
+    setSynonymBusy(true);
+    setSynonymError("");
+    try {
+      if (file && !file.name.toLowerCase().endsWith(".xml")) {
+        throw new Error("Välj Swesaurus-filen swesaurus.xml.");
+      }
+      const status = file ? await uploadSwesaurus(file) : await installSwesaurus();
+      setSynonymStatus(status);
+      setSynonymResults(null);
+    } catch (error) {
+      setSynonymError(error instanceof Error ? error.message : "Kunde inte importera synonymer.");
+    } finally { setSynonymBusy(false); }
+  };
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(crossword));
@@ -266,12 +298,39 @@ export default function App() {
     [lexicon, customWords, rangePattern, rangeValid],
   );
 
-  const fillSelectedRange = (word: string) => {
+  const synonymPattern = rangeValid
+    ? replaceSynonymLetters ? ".".repeat(selectedRange.length) : rangePattern
+    : "";
+
+  useEffect(() => {
+    const term = normalizeCrosswordWord(synonymTerm);
+    if (!synonymStatus?.installed || !/^[A-ZÅÄÖ]{2,50}$/.test(term)) {
+      setSynonymResults(null);
+      setSynonymSearching(false);
+      return;
+    }
+    const controller = new AbortController();
+    setSynonymSearching(true);
+    setSynonymResults(null);
+    const timer = setTimeout(() => {
+      void getSynonyms(term, synonymPattern, controller.signal)
+        .then(data => { if (!controller.signal.aborted) { setSynonymResults(data); setSynonymError(""); } })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted) {
+            setSynonymError(error instanceof Error ? error.message : "Sökningen misslyckades.");
+          }
+        }).finally(() => { if (!controller.signal.aborted) setSynonymSearching(false); });
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [synonymTerm, synonymPattern, synonymStatus?.installed]);
+
+  const fillSelectedRange = (word: string, allowReplace = false) => {
     if (!rangeValid || word.length !== selectedRange.length) return;
     const matches = selectedRange.every(({ row, col }, index) => {
       const cell = crossword.cells[row][col];
       return cell.type === "letter" &&
-        (!cell.value || cell.value === word[index]) &&
+        (!cell.value || cell.value === word[index] ||
+          (allowReplace && !lockedCellKeys.has(answerCellKey({ row, col })))) &&
         (!lockedCellKeys.has(answerCellKey({ row, col })) || cell.value === word[index]);
     });
     if (!matches) {
@@ -1829,6 +1888,93 @@ export default function App() {
                       </div>
                     </>
                   ) : <p className="hint">Inga ord passar det markerade mönstret.</p>}
+                </>
+              )}
+            </section>
+
+            <section className="synonyms-panel" aria-label="Synonymer">
+              <h3>Synonymer och närbesläktade ord</h3>
+              <p className="hint">Sök på betydelse och få förslag som passar i de markerade rutorna.</p>
+              <p className="dictionary-source">
+                Källa: <a href="https://spraakbanken.gu.se/resurser/swesaurus"
+                  target="_blank" rel="noopener noreferrer">Swesaurus, Språkbanken</a> · CC BY 4.0
+              </p>
+              {synonymStatus?.installed ? (
+                <p className="hint">
+                  Installerad på servern · {synonymStatus.pairs?.toLocaleString("sv-SE")} synonympar
+                  {synonymStatus.importedAt ? " · " + new Date(synonymStatus.importedAt).toLocaleDateString("sv-SE") : ""}
+                </p>
+              ) : <p className="hint">Swesaurus är ännu inte installerad på servern.</p>}
+              <div className="synonym-install-actions">
+                <button type="button" className="secondary" disabled={synonymBusy}
+                  onClick={() => void importSynonyms()}>
+                  {synonymBusy ? "Importerar…" : synonymStatus?.installed ? "Uppdatera Swesaurus" : "Installera Swesaurus"}
+                </button>
+                <button type="button" className="secondary" disabled={synonymBusy}
+                  onClick={() => synonymFileRef.current?.click()}>
+                  Importera XML-fil
+                </button>
+                <input ref={synonymFileRef} className="sr-only" type="file" accept=".xml,application/xml,text/xml"
+                  onChange={event => {
+                    const file = event.target.files?.[0];
+                    if (file) void importSynonyms(file);
+                    event.currentTarget.value = "";
+                  }}/>
+              </div>
+              {synonymError && <p role="alert" className="inline-issue inline-issue--error">{synonymError}</p>}
+              {synonymBusy && <p role="status" className="hint">Läser och indexerar synonymordlistan. Det kan ta en stund.</p>}
+              <label className="field">
+                <span>Sökord</span>
+                <input value={synonymTerm} placeholder="Till exempel GAMMAL"
+                  maxLength={50}
+                  onChange={event => setSynonymTerm(event.target.value)}
+                  aria-label="Sök synonymer till ord" />
+              </label>
+              {rangeValid && !rangePattern.includes(".") && (
+                <button type="button" className="secondary compact-action"
+                  onClick={() => { setSynonymTerm(rangePattern); setReplaceSynonymLetters(true); }}>
+                  Sök markerat ord ({rangePattern})
+                </button>
+              )}
+              {rangeValid ? (
+                <>
+                  <p className="range-selection-summary">
+                    {selectedRange.length} bokstavsrutor · <code>{synonymPattern.replaceAll(".", "·")}</code>
+                  </p>
+                  <label className="synonym-replace-option">
+                    <input type="checkbox" checked={replaceSynonymLetters}
+                      onChange={event => setReplaceSynonymLetters(event.target.checked)} />
+                    <span>Tillåt att ersätta ifyllda bokstäver (inte låsta)</span>
+                  </label>
+                  {replaceSynonymLetters && (
+                    <p className="hint">Kontrollera korsande ord efter byte – deras bokstäver kan påverkas.</p>
+                  )}
+                </>
+              ) : <p className="hint">Markera minst två bokstavsrutor i rad för att kunna infoga ett ord.</p>}
+              {synonymStatus?.installed && /^[A-ZÅÄÖ]{2,50}$/.test(normalizeCrosswordWord(synonymTerm)) && (
+                <>
+                  {synonymSearching ? <p className="hint">Söker…</p> :
+                    synonymResults ? (
+                      <>
+                        <p className="candidate-count">
+                          {synonymResults.total.toLocaleString("sv-SE")} förslag
+                          {synonymResults.total > synonymResults.matches.length ? " · visar de första 60" : ""}
+                        </p>
+                        <div className="candidate-list synonym-candidates">
+                          {synonymResults.matches.map(word => (
+                            <button type="button" className="candidate-word" key={word}
+                              disabled={!rangeValid}
+                              onClick={() => fillSelectedRange(word, replaceSynonymLetters)}
+                              title={rangeValid ? "Sätt in " + word : "Markera bokstavsrutor först"}>
+                              <span>{word}</span><small>{word.length} bokstäver</small>
+                            </button>
+                          ))}
+                        </div>
+                        {synonymResults.total === 0 && (
+                          <p className="hint">Inga närbesläktade ord passar sökordet och markeringen.</p>
+                        )}
+                      </>
+                    ) : null}
                 </>
               )}
             </section>

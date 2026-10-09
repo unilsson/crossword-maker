@@ -2,6 +2,15 @@
 
 A browser-based editor for **Swedish/Scandinavian-style crosswords**: clue text lives inside the grid, arrows indicate answer direction, images can occupy multi-cell areas, answer structure is derived automatically, and a Swedish word list can suggest matching words.
 
+
+## Sprint 7 – Swesaurus synonyms
+
+The editor includes a **Synonymer och närbesläktade ord** panel beside the ordinary pattern-based word suggestions. Swesaurus can be installed to the server SQLite database and searched by meaning, answer length and existing letters. Clicking a compatible suggestion inserts it in the selected horizontal or vertical range. Locked cells are protected.
+
+The synonym source is [Swesaurus by Språkbanken Text](https://spraakbanken.gu.se/resurser/swesaurus), licensed under **CC BY 4.0**. It is not bundled with the application; users opt in to download it via the UI, or may upload the official XML file. Fuzzy synonym groups can include words that are related but not directly interchangeable. See [docs/swesaurus.md](docs/swesaurus.md) for installation, attribution and tests.
+
+Docker Compose now builds the API from `server/Dockerfile`, rather than bind-mounting its code. All projects, image assets and imported synonyms persist in the named `crossword-data` volume.
+
 ## Sprint 4
 
 The editor currently includes:
