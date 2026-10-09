@@ -53,3 +53,48 @@ test("matches letter pattern and length exactly", () => {
   assert.equal(matchesCrosswordPattern("RÅDHUS", "R..H.SS"), false);
   assert.equal(matchesCrosswordPattern("RÅDHUS", "R...S"), false);
 });
+
+test("imports official Swesaurus 2017 LMF with empty lemmas and SALDO sense ids", () => {
+  // Based on actual Swesaurus XML structure: SenseRelation label=syn, not synset.
+  const xml = `<?xml version="1.0" encoding="utf-8"?>
+  <LexicalResource dtdVersion="16"><Lexicon>
+    <LexicalEntry><Lemma /><Sense id="abakus..1">
+      <SenseRelation targets="kulram..1"><feat att="label" val="syn" /><feat att="degree" val="86"/></SenseRelation>
+      <SenseRelation targets="kulram..1"><feat att="label" val="syn" /><feat att="source" val="wiktionary"/></SenseRelation>
+    </Sense></LexicalEntry>
+    <LexicalEntry><Lemma /><Sense id="kulram..1">
+      <SenseRelation targets="abakus..1"><feat att="label" val="syn" /></SenseRelation>
+    </Sense></LexicalEntry>
+    <LexicalEntry><Lemma /><Sense id="förkorta..1">
+      <SenseRelation targets="abbreviera..1"><feat att="label" val="syn" /></SenseRelation>
+      <SenseRelation targets="minska..1"><feat att="label" val="iu" /></SenseRelation>
+      <SenseRelation targets="del..1"><feat att="label" val="tp" /></SenseRelation>
+    </Sense></LexicalEntry>
+  </Lexicon></LexicalResource>`;
+  const result = extractSwesaurus(xml);
+  assert.equal(result.entries, 3);
+  assert.deepEqual(result.pairs, [
+    ["ABAKUS", "KULRAM"],
+    ["ABBREVIERA", "FÖRKORTA"]
+  ]);
+});
+
+test("does not import non-synonym Swesaurus relations", () => {
+  const xml = `<LexicalResource><Lexicon>
+    <LexicalEntry><Lemma/><Sense id="kontinent..1">
+      <SenseRelation targets="landmassa..1">
+        <feat att="label" val="iu"/>
+      </SenseRelation>
+    </Sense></LexicalEntry>
+  </Lexicon></LexicalResource>`;
+  assert.throws(() => extractSwesaurus(xml), /Inga synonympar/);
+});
+
+test("does not invent words from arbitrary non-SALDO sense ids", () => {
+  const xml = `<LexicalResource><Lexicon>
+    <LexicalEntry><Lemma/><Sense id="x01">
+      <SenseRelation targets="x02"><feat att="label" val="syn"/></SenseRelation>
+    </Sense></LexicalEntry>
+  </Lexicon></LexicalResource>`;
+  assert.throws(() => extractSwesaurus(xml), /Inga synonympar/);
+});
