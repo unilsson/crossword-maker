@@ -1,0 +1,12 @@
+{
+  "name": "crossword-maker-api",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "fast-xml-parser": "^5.2.5"
+  },
+  "scripts": {
+    "start": "node index.mjs",
+    "test": "node --test"
+  }
+}
