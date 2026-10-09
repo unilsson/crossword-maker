@@ -37,6 +37,7 @@ export interface ImageArrow {
   offset: number;
   direction: ImageArrowDirection;
   distance: number;
+  locked?: boolean;
 }
 
 export interface CrosswordImage {
@@ -60,6 +61,7 @@ export interface Crossword {
   cells: Cell[][];
   images: CrosswordImage[];
   uppercaseClues?: boolean;
+  lockedAnswerIds?: string[];
 }
 
 
@@ -76,6 +78,24 @@ export interface Answer {
   direction: Direction;
   cells: CellPosition[];
   value: string;
+}
+
+export interface ImagePhraseWord {
+  index: number;
+  cells: CellPosition[];
+  value: string;
+}
+
+export interface ImagePhrase {
+  id: string;
+  imageId: string;
+  arrowId: string;
+  direction: ImageArrowDirection;
+  start: CellPosition;
+  cells: CellPosition[];
+  words: ImagePhraseWord[];
+  value: string;
+  locked: boolean;
 }
 
 export type ValidationSeverity = "error" | "warning";
