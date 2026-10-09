@@ -1223,3 +1223,22 @@ footer {
 .range-word-search h3 { margin: 0 0 8px; font-size: 15px; }
 .range-word-search .candidate-list { max-height: 280px; overflow-y: auto; }
 .range-word-search code { letter-spacing: .08em; overflow-wrap: anywhere; }
+
+.synonyms-panel {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid #cfc7ba;
+  border-radius: 10px;
+  background: #fffdf9;
+}
+.synonyms-panel h3 { margin: 0 0 8px; font-size: 15px; }
+.synonym-install-actions { display: flex; gap: 7px; flex-wrap: wrap; margin: 12px 0; }
+.synonym-install-actions button { font-size: 12px; padding: 8px 10px; }
+.synonyms-panel .field { display: grid; gap: 4px; margin: 10px 0; }
+.synonyms-panel .field input { width: 100%; min-width: 0; padding: 9px; }
+.synonyms-panel .candidate-list { max-height: 280px; overflow-y: auto; }
+.synonyms-panel .candidate-word:disabled { cursor: not-allowed; opacity: .5; }
+.synonyms-panel a { color: #285d49; }
+.synonym-replace-option { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; font-size: 12px; }
+.synonym-replace-option input { margin-top: 3px; }
+.synonyms-panel code { overflow-wrap: anywhere; }
